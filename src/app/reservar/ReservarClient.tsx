@@ -41,7 +41,6 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
   const [slots, setSlots] = useState<Slot[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [whatsappLink, setWhatsappLink] = useState('');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -101,7 +100,6 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
         });
 
         if (result.success) {
-          setWhatsappLink(result.whatsappLink!);
           setStep(5);
         } else {
           setError(result.error || 'Error al crear el turno.');
