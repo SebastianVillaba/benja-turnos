@@ -20,7 +20,7 @@ export async function BarbersSection() {
         <p className="text-zinc-300 mt-4 text-lg">
           El equipo que lleva tu estilo al siguiente nivel.
         </p>
-      </div>
+      </div>  
       
       <div className="w-full px-2 grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 3. Mapeamos los datos reales */}
