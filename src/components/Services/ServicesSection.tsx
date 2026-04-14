@@ -7,12 +7,7 @@ export function ServicesSection() {
       title: 'Fades Profesionales',
       description: 'Degradados perfectos con técnica y precisión',
       Icon: Scissors,
-    },
-    {
-      title: 'Color y Fantasía',
-      description: 'Tintes vibrantes y colores únicos',
-      Icon: Paintbrush,
-    },
+    }
   ];
 
   return (

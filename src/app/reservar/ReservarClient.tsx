@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { getAvailableSlots, createAppointment } from '@/app/actions/actions';
+import CustomCalendar from '@/components/CustomCalendar';
 import { ArrowLeft, User, Scissors, Calendar, Clock, Check, MessageCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { format, parse } from 'date-fns';
@@ -245,13 +246,10 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
 
           {/* Date picker */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-zinc-300 mb-2">Fecha</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              min={today}
-              className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-3 text-white focus:border-amber-600/50 focus:outline-none focus:ring-1 focus:ring-amber-600/30 transition-colors [color-scheme:dark]"
+            <label className="block text-sm font-medium text-zinc-300 mb-3">Fecha</label>
+            <CustomCalendar 
+              selectedDate={selectedDate} 
+              onDateChange={handleDateChange} 
             />
           </div>
 
@@ -387,7 +385,7 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-2">¡Turno Reservado!</h2>
-          <p className="text-zinc-400 mb-8">Tu turno fue registrado con éxito. Enviá el mensaje por WhatsApp para confirmar.</p>
+          <p className="text-zinc-400 mb-8">Tu turno fue registrado con éxito.</p>
 
           {/* Resumen final */}
           <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 mb-8 text-left">
@@ -410,15 +408,6 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
               </div>
             </div>
           </div>
-
-          <a
-            href={whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-4 rounded-2xl text-lg transition-all duration-300 shadow-[0_0_15px_rgba(34,197,94,0.2)] hover:shadow-[0_0_30px_rgba(34,197,94,0.4)] flex items-center justify-center gap-3 mb-4"
-          >
-            <MessageCircle className="w-6 h-6" /> Confirmar por WhatsApp
-          </a>
 
           <Link
             href="/"

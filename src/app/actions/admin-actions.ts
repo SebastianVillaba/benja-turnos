@@ -131,7 +131,9 @@ export async function getAppointmentsByDate(dateStr: string) {
   await requireAuth();
   await connectToDatabase();
 
-  const date = new Date(dateStr);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day); // Se crea al inicio del día en la hora local correcta del servidor
+  
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
 
@@ -140,6 +142,9 @@ export async function getAppointmentsByDate(dateStr: string) {
   })
     .sort({ date: 1 })
     .lean();
+
+
+  console.log(appointments);
 
   return appointments.map((a: any) => ({
     _id: a._id.toString(),

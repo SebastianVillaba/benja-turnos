@@ -47,7 +47,7 @@ export function WelcomeSection() {
           </Link>
           {/* Botón de ver trabajos */}
           <Link 
-            href="/galeria" 
+            href="#galeria" 
             className="w-full max-w-xs border border-amber-600/50 hover:border-amber-500 bg-amber-950/20 hover:bg-amber-900/40 text-amber-200 font-bold py-4 rounded-xl text-lg transition-all duration-300 shadow-[0_0_15px_rgba(180,140,80,0.2)] hover:shadow-[0_0_30px_rgba(217,176,108,0.4)]"
           >
             Ver trabajos

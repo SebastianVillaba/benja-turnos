@@ -15,7 +15,7 @@ export async function BarbersSection() {
     <section className="w-full max-w-xl mx-auto flex flex-col items-center gap-8 mt-24">
       <div className="text-center px-4">
         <h2 className="text-[2.5rem] font-black tracking-tighter text-amber-100 uppercase drop-shadow-[0_0_15px_rgba(217,176,108,0.3)]">
-          Nuestros Maestros
+          Nuestros Profesionales
         </h2>
         <p className="text-zinc-300 mt-4 text-lg">
           El equipo que lleva tu estilo al siguiente nivel.

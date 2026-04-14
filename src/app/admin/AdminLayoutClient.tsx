@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   X,
+  Home,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -19,6 +20,7 @@ const navItems = [
   { label: 'Servicios', href: '/admin/servicios', icon: Scissors },
   { label: 'Barberos', href: '/admin/barberos', icon: Users },
   { label: 'Turnos', href: '/admin/turnos', icon: CalendarCheck },
+  { label: 'Ir al sitio', href: '/', icon: Home },
 ];
 
 export default function AdminLayoutClient({ children }: { children: React.ReactNode }) {

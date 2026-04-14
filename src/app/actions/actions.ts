@@ -100,6 +100,31 @@ interface CreateAppointmentData {
   barberName: string;
 }
 
+async function sendWhatsAppMessage(to: string, message: string) {
+  try {
+    const response = await fetch('https://api-whatsapp.elpedalbogado.com/enviar-turno', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        numero: to,
+        mensaje: message,
+      }),
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error.message);
+    }
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error al enviar mensaje de WhatsApp:', error.message);
+    return { success: false, error: 'Error al enviar mensaje de WhatsApp.' };
+  }
+}
+
 export async function createAppointment(data: CreateAppointmentData) {
   await connectToDatabase();
 
@@ -140,15 +165,19 @@ export async function createAppointment(data: CreateAppointmentData) {
   const formattedTime = data.time;
 
   // Generar link de WhatsApp
-  const PHONE_NUMBER = '5491100000000'; // <- Cambiar por el número real
-  const message = encodeURIComponent(
-    `Hola, quiero confirmar un turno para ${data.serviceName} con el barbero ${data.barberName} el día ${formattedDate} a las ${formattedTime}. Mi nombre es ${data.customerName}.`
-  );
-  const whatsappLink = `https://api.whatsapp.com/send?phone=${PHONE_NUMBER}&text=${message}`;
+  //const CLIENT_NUMBER = `595${data.customerPhone}`;
+  const COMPANY_NUMBER = '595983475319'
+  const messageEmpresa = `Turno confirmado para ${data.serviceName} con el barbero ${data.barberName} el día ${formattedDate} a las ${formattedTime}.`;
+  //const messageCliente = `Hola ${data.customerName}!, tienes un turno para ${data.serviceName} con el barbero ${data.barberName} el día ${formattedDate} a las ${formattedTime}.`;
+
+  // Envio de mensaje al nro de la empresa
+  await sendWhatsAppMessage(COMPANY_NUMBER, messageEmpresa);
+
+  // Envio de mensaje al nro del cliente
+  //await sendWhatsAppMessage(CLIENT_NUMBER, messageCliente);
 
   return {
     success: true,
     appointmentId: appointment._id.toString(),
-    whatsappLink,
   };
 }
