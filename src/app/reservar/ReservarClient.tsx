@@ -18,6 +18,8 @@ interface Service {
   _id: string;
   name: string;
   price: number;
+  originalPrice?: number;
+  hasWebDiscount?: boolean;
   description: string;
   durationMinutes: number;
 }
@@ -212,9 +214,23 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
                 onClick={() => handleSelectService(service)}
                 className="flex flex-col p-5 bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl hover:border-amber-600/50 hover:shadow-[0_0_20px_rgba(217,176,108,0.1)] transition-all duration-300 text-left group"
               >
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="text-lg font-bold text-white group-hover:text-amber-100">{service.name}</h3>
-                  <span className="text-amber-500 font-bold text-lg">${service.price.toLocaleString('es-AR')}</span>
+                <div className="flex justify-between items-start mb-2 gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white group-hover:text-amber-100 flex py-1 items-center gap-2 flex-wrap">
+                      {service.name}
+                      {service.hasWebDiscount && (
+                        <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold text-green-400 border border-green-500/20 uppercase tracking-widest">
+                          Descuento Web
+                        </span>
+                      )}
+                    </h3>
+                  </div>
+                  <div className="text-right flex flex-col items-end">
+                    {service.hasWebDiscount && service.originalPrice && (
+                      <span className="text-zinc-500 line-through text-xs font-medium">${service.originalPrice.toLocaleString('es-AR')}</span>
+                    )}
+                    <span className="text-amber-500 font-bold text-lg">${service.price.toLocaleString('es-AR')}</span>
+                  </div>
                 </div>
                 {service.description && (
                   <p className="text-sm text-zinc-400 mb-2">{service.description}</p>
@@ -320,9 +336,22 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
                 <span className="text-zinc-400">Hora</span>
                 <span className="text-white font-medium">{selectedTime} hs</span>
               </div>
-              <div className="border-t border-zinc-800 pt-3 flex justify-between items-center">
-                <span className="text-zinc-300 font-medium">Total</span>
-                <span className="text-amber-500 font-bold text-xl">${selectedService?.price.toLocaleString('es-AR')}</span>
+              <div className="border-t border-zinc-800 pt-3 flex flex-col gap-1">
+                {selectedService?.hasWebDiscount && selectedService?.originalPrice && (
+                  <div className="flex justify-between items-center text-sm mb-1">
+                    <span className="text-zinc-500">Precio Regular</span>
+                    <span className="text-zinc-500 line-through">{selectedService.originalPrice.toLocaleString('es-AR')}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-300 font-medium">Total</span>
+                  <div className="flex items-center gap-2">
+                    {selectedService?.hasWebDiscount && (
+                      <span className="text-green-400 text-[10px] font-bold bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 uppercase tracking-wider hidden sm:inline-block">Descuento Web</span>
+                    )}
+                    <span className="text-amber-500 font-bold text-xl">{selectedService?.price.toLocaleString('es-AR')}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

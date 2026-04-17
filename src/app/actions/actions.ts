@@ -24,13 +24,21 @@ export async function getBarbers() {
 export async function getServices() {
   await connectToDatabase();
   const services = await Service.find({}).lean();
-  return services.map((s: any) => ({
-    _id: s._id.toString(),
-    name: s.name,
-    price: s.price,
-    description: s.description || '',
-    durationMinutes: s.durationMinutes || 30,
-  }));
+  return services.map((s: any) => {
+    // Si se agenda desde la web, los cortes tienen un descuento (40.000 Gs)
+    const isHaircut = s.name.toLowerCase().includes('corte');
+    const hasDiscount = isHaircut && s.price === 60000;
+    
+    return {
+      _id: s._id.toString(),
+      name: s.name,
+      price: hasDiscount ? 40000 : s.price,
+      originalPrice: hasDiscount ? 60000 : s.price,
+      hasWebDiscount: hasDiscount,
+      description: s.description || '',
+      durationMinutes: s.durationMinutes || 30,
+    };
+  });
 }
 
 export async function getAvailableSlots(barberId: string, dateStr: string) {
