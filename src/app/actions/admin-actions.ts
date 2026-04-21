@@ -140,11 +140,9 @@ export async function getAppointmentsByDate(dateStr: string) {
   const appointments = await Appointment.find({
     date: { $gte: dayStart, $lte: dayEnd },
   })
+    .populate('barberId', 'name imageUrl')
     .sort({ date: 1 })
     .lean();
-
-
-  console.log(appointments);
 
   return appointments.map((a: any) => ({
     _id: a._id.toString(),
@@ -156,6 +154,11 @@ export async function getAppointmentsByDate(dateStr: string) {
     date: a.date.toISOString(),
     time: format(new Date(a.date), 'HH:mm'),
     formattedDate: format(new Date(a.date), "d 'de' MMMM, yyyy", { locale: es }),
+    barber: a.barberId ? {
+      _id: a.barberId._id?.toString() || a.barberId.toString(),
+      name: a.barberId.name || 'Desconocido',
+      imageUrl: a.barberId.imageUrl || '',
+    } : null,
   }));
 }
 

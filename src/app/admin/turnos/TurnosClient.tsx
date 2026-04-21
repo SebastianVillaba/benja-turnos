@@ -15,6 +15,11 @@ interface AppointmentItem {
   date: string;
   time: string;
   formattedDate: string;
+  barber?: {
+    _id: string;
+    name: string;
+    imageUrl: string;
+  } | null;
 }
 
 export default function TurnosClient() {
@@ -52,6 +57,18 @@ export default function TurnosClient() {
     cancelled: { label: 'Cancelado', color: 'text-red-500', bg: 'bg-red-950/30', border: 'border-red-900/50' },
   };
 
+  // Group appointments by barber
+  const groupedAppointments = appointments.reduce((acc, apt) => {
+    const barberId = apt.barber?._id || 'unassigned';
+    if (!acc[barberId]) {
+      acc[barberId] = { barber: apt.barber, appointments: [] };
+    }
+    acc[barberId].appointments.push(apt);
+    return acc;
+  }, {} as Record<string, { barber: AppointmentItem['barber']; appointments: AppointmentItem[] }>);
+
+  const groups = Object.values(groupedAppointments);
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
@@ -77,60 +94,85 @@ export default function TurnosClient() {
           <p className="text-zinc-500">No hay turnos para esta fecha.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {appointments.map((apt) => {
-            const config = statusConfig[apt.status] || statusConfig.pending;
-            return (
-              <div
-                key={apt._id}
-                className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700/80 transition-all duration-300"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  {/* Info */}
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-amber-500">{apt.time}</span>
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.color} border ${config.border}`}>
-                        {config.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-zinc-300">
-                      <User className="w-4 h-4 text-zinc-500" />
-                      <span className="font-medium">{apt.customerName}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-zinc-400 text-sm">
-                      <Phone className="w-3.5 h-3.5 text-zinc-500" />
-                      <span>{apt.customerPhone}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-zinc-400">{apt.serviceNameSnapshot}</span>
-                      <span className="text-amber-500 font-medium">${apt.priceSnapshot.toLocaleString('es-AR')}</span>
-                    </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+          {groups.map((group) => (
+            <div key={group.barber?._id || 'unassigned'} className="space-y-4">
+              {/* Barber Header */}
+              <div className="flex items-center gap-4 bg-[#141414] border border-zinc-800/80 p-4 rounded-2xl shadow-sm">
+                {group.barber?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={group.barber.imageUrl} alt={group.barber.name} className="w-12 h-12 rounded-full object-cover border-2 border-amber-500/50" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-zinc-700">
+                    <User className="w-6 h-6 text-zinc-500" />
                   </div>
-
-                  {/* Actions */}
-                  {apt.status === 'pending' && (
-                    <div className="flex items-center gap-2 sm:flex-col">
-                      <button
-                        onClick={() => handleStatusChange(apt._id, 'confirmed')}
-                        disabled={isPending}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition-all text-sm font-medium disabled:opacity-50"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Confirmar
-                      </button>
-                      <button
-                        onClick={() => handleStatusChange(apt._id, 'cancelled')}
-                        disabled={isPending}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-all text-sm font-medium disabled:opacity-50"
-                      >
-                        <XCircle className="w-4 h-4" /> Cancelar
-                      </button>
-                    </div>
-                  )}
+                )}
+                <div>
+                  <h2 className="text-xl font-bold text-white">{group.barber?.name || 'Sin Especificar'}</h2>
+                  <p className="text-sm text-zinc-400">
+                    {group.appointments.length} {group.appointments.length === 1 ? 'turno' : 'turnos'}
+                  </p>
                 </div>
               </div>
-            );
-          })}
+
+              {/* Barber's Appointments */}
+              <div className="space-y-3">
+                {group.appointments.map((apt) => {
+                  const config = statusConfig[apt.status] || statusConfig.pending;
+                  return (
+                    <div
+                      key={apt._id}
+                      className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700/80 transition-all duration-300 shadow-sm"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        {/* Info */}
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg font-bold text-amber-500">{apt.time}</span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.color} border ${config.border}`}>
+                              {config.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-300">
+                            <User className="w-4 h-4 text-zinc-500" />
+                            <span className="font-medium">{apt.customerName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-zinc-400 text-sm">
+                            <Phone className="w-3.5 h-3.5 text-zinc-500" />
+                            <span>{apt.customerPhone}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-zinc-400">{apt.serviceNameSnapshot}</span>
+                            <span className="text-amber-500 font-medium">${apt.priceSnapshot.toLocaleString('es-AR')}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        {apt.status === 'pending' && (
+                          <div className="flex items-center gap-2 sm:flex-col">
+                            <button
+                              onClick={() => handleStatusChange(apt._id, 'confirmed')}
+                              disabled={isPending}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition-all text-sm font-medium disabled:opacity-50"
+                            >
+                              <CheckCircle className="w-4 h-4" /> Confirmar
+                            </button>
+                            <button
+                              onClick={() => handleStatusChange(apt._id, 'cancelled')}
+                              disabled={isPending}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-all text-sm font-medium disabled:opacity-50"
+                            >
+                              <XCircle className="w-4 h-4" /> Cancelar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -175,7 +175,7 @@ export async function createAppointment(data: CreateAppointmentData) {
   // Generar link de WhatsApp
   //const CLIENT_NUMBER = `595${data.customerPhone}`;
   const COMPANY_NUMBER = '595983475319'
-  const messageEmpresa = `Turno reservado para *${data.customerName}* para el servicio de *${data.serviceName}* con el barbero *${data.barberName}* el día *${formattedDate}* a las *${formattedTime}*.`;
+  const messageEmpresa = `Turno reservado para *${data.customerName}*\n para el servicio de *${data.serviceName}*\n con el barbero *${data.barberName}*\n el día *${formattedDate}*\n a las *${formattedTime}*.`;
   //const messageCliente = `Hola ${data.customerName}!, tienes un turno para ${data.serviceName} con el barbero ${data.barberName} el día ${formattedDate} a las ${formattedTime}.`;
 
   // Envio de mensaje al nro de la empresa
