@@ -84,6 +84,7 @@ export async function getBarbersAdmin() {
     name: b.name,
     imageUrl: b.imageUrl,
     isActive: b.isActive,
+    unavailableDays: b.unavailableDays || [],
   }));
 }
 
@@ -91,10 +92,14 @@ export async function createBarber(formData: FormData) {
   await requireAuth();
   await connectToDatabase();
 
+  const unavailableDaysStr = formData.get('unavailableDays') as string;
+  const unavailableDays = unavailableDaysStr ? JSON.parse(unavailableDaysStr) : [];
+
   await Barber.create({
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
+    unavailableDays,
   });
 
   revalidatePath('/admin/barberos');
@@ -105,10 +110,14 @@ export async function updateBarber(id: string, formData: FormData) {
   await requireAuth();
   await connectToDatabase();
 
+  const unavailableDaysStr = formData.get('unavailableDays') as string;
+  const unavailableDays = unavailableDaysStr ? JSON.parse(unavailableDaysStr) : [];
+
   await Barber.findByIdAndUpdate(id, {
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
+    unavailableDays,
   });
 
   revalidatePath('/admin/barberos');
@@ -126,6 +135,54 @@ export async function deleteBarber(id: string) {
 // ============================================================
 // GESTIÓN DE TURNOS
 // ============================================================
+
+import { parse } from 'date-fns';
+
+interface AdminCreateAppointmentData {
+  barberId: string;
+  serviceId: string;
+  customerName: string;
+  customerPhone: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:mm
+  serviceName: string;
+  servicePrice: number;
+}
+
+export async function adminCreateAppointment(data: AdminCreateAppointmentData) {
+  await requireAuth();
+  await connectToDatabase();
+
+  const appointmentDate = parse(
+    `${data.date} ${data.time}`,
+    'yyyy-MM-dd HH:mm',
+    new Date()
+  );
+
+  const existing = await Appointment.findOne({
+    barberId: data.barberId,
+    date: appointmentDate,
+    status: { $ne: 'cancelled' },
+  });
+
+  if (existing) {
+    return { success: false, error: 'Este horario ya fue reservado.' };
+  }
+
+  await Appointment.create({
+    barberId: data.barberId,
+    serviceId: data.serviceId,
+    customerName: data.customerName,
+    customerPhone: data.customerPhone,
+    date: appointmentDate,
+    serviceNameSnapshot: data.serviceName,
+    priceSnapshot: data.servicePrice,
+    status: 'confirmed', // Se confirma automáticamente al ser creado por el admin
+  });
+
+  revalidatePath('/admin/turnos');
+  return { success: true };
+}
 
 export async function getAppointmentsByDate(dateStr: string) {
   await requireAuth();

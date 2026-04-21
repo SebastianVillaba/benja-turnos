@@ -12,6 +12,7 @@ interface Barber {
   _id: string;
   name: string;
   imageUrl: string;
+  unavailableDays?: number[];
 }
 
 interface Service {
@@ -43,6 +44,7 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
   const [slots, setSlots] = useState<Slot[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('595');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const [loadingSlots, setLoadingSlots] = useState(false);
@@ -85,7 +87,20 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
       setError('Completá tu nombre y teléfono.');
       return;
     }
+
+    const cleanPhone = customerPhone.replace(/\D/g, '');
+    if (cleanPhone.startsWith('0')) {
+      setError('El número de teléfono no debe comenzar con 0.');
+      return;
+    }
+
+    if (cleanPhone.length < 9) {
+      setError('El número de teléfono debe tener al menos 9 dígitos.');
+      return;
+    }
+
     setError('');
+    const fullPhone = `${countryCode} ${cleanPhone}`;
 
     startTransition(async () => {
       try {
@@ -93,7 +108,7 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
           barberId: selectedBarber!._id,
           serviceId: selectedService!._id,
           customerName,
-          customerPhone,
+          customerPhone: fullPhone,
           date: selectedDate,
           time: selectedTime,
           serviceName: selectedService!.name,
@@ -263,7 +278,8 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
             <label className="block text-sm font-medium text-zinc-300 mb-3">Fecha</label>
             <CustomCalendar 
               selectedDate={selectedDate} 
-              onDateChange={handleDateChange} 
+              onDateChange={handleDateChange}
+              disabledDaysOfWeek={selectedBarber?.unavailableDays}
             />
           </div>
 
@@ -368,15 +384,37 @@ export default function ReservarClient({ barbers, services }: ReservarClientProp
                 className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none focus:ring-1 focus:ring-amber-600/30 transition-colors"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-2">Tu teléfono</label>
-              <input
-                type="tel"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                placeholder="Ej: 1122334455"
-                className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none focus:ring-1 focus:ring-amber-600/30 transition-colors"
-              />
+            <div className='flex gap-2 sm:gap-3'>
+              <div className='w-[130px] shrink-0'>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Código</label>
+                <div className="relative">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-xl pl-3 pr-8 py-3 text-white appearance-none cursor-pointer focus:border-amber-600/50 focus:outline-none focus:ring-1 focus:ring-amber-600/30 transition-colors"
+                  >
+                    <option value="595">🇵🇾 +595</option>
+                  </select>
+                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
+                    <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/>
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div className='flex-1'>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Tu teléfono</label>
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setCustomerPhone(val);
+                  }}
+                  placeholder="Ej: 983475319"
+                  className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-3 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none focus:ring-1 focus:ring-amber-600/30 transition-colors"
+                />
+              </div>
             </div>
           </div>
 

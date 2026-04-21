@@ -1,9 +1,24 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { getAppointmentsByDate, updateAppointmentStatus } from '@/app/actions/admin-actions';
-import { CalendarCheck, CheckCircle, XCircle, Clock, Loader2, Phone, User } from 'lucide-react';
+import { getAppointmentsByDate, updateAppointmentStatus, adminCreateAppointment } from '@/app/actions/admin-actions';
+import { getAvailableSlots } from '@/app/actions/actions';
+import { CalendarCheck, CheckCircle, XCircle, Clock, Loader2, Phone, User, Plus, X } from 'lucide-react';
 import { format } from 'date-fns';
+import CustomCalendar from '@/components/CustomCalendar';
+
+interface Barber {
+  _id: string;
+  name: string;
+  imageUrl: string;
+  unavailableDays?: number[];
+}
+
+interface Service {
+  _id: string;
+  name: string;
+  price: number;
+}
 
 interface AppointmentItem {
   _id: string;
@@ -22,12 +37,29 @@ interface AppointmentItem {
   } | null;
 }
 
-export default function TurnosClient() {
+interface TurnosClientProps {
+  barbers?: Barber[];
+  services?: Service[];
+}
+
+export default function TurnosClient({ barbers = [], services = [] }: TurnosClientProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [selectedDate, setSelectedDate] = useState(today);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [newAptBarber, setNewAptBarber] = useState('');
+  const [newAptService, setNewAptService] = useState('');
+  const [newAptDate, setNewAptDate] = useState(today);
+  const [newAptTime, setNewAptTime] = useState('');
+  const [newAptName, setNewAptName] = useState('');
+  const [newAptPhone, setNewAptPhone] = useState('');
+  const [slots, setSlots] = useState<{ time: string; available: boolean }[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [error, setError] = useState('');
 
   const loadAppointments = async (dateStr: string) => {
     setLoading(true);
@@ -69,6 +101,59 @@ export default function TurnosClient() {
 
   const groups = Object.values(groupedAppointments);
 
+  // Load slots for modal
+  useEffect(() => {
+    if (newAptBarber && newAptDate) {
+      setLoadingSlots(true);
+      getAvailableSlots(newAptBarber, newAptDate).then((data) => {
+        setSlots(data);
+        setLoadingSlots(false);
+        setNewAptTime(''); // Reset time if barber or date changes
+      }).catch(() => {
+        setSlots([]);
+        setLoadingSlots(false);
+      });
+    } else {
+      setSlots([]);
+    }
+  }, [newAptBarber, newAptDate]);
+
+  const handleCreateAppointment = () => {
+    if (!newAptBarber || !newAptService || !newAptDate || !newAptTime || !newAptName.trim() || !newAptPhone.trim()) {
+      setError('Por favor completa todos los campos (Nombre y Teléfono son obligatorios).');
+      return;
+    }
+
+    const serviceObj = services.find(s => s._id === newAptService);
+    if (!serviceObj) return;
+
+    setError('');
+    startTransition(async () => {
+      const result = await adminCreateAppointment({
+        barberId: newAptBarber,
+        serviceId: newAptService,
+        date: newAptDate,
+        time: newAptTime,
+        customerName: newAptName,
+        customerPhone: newAptPhone,
+        serviceName: serviceObj.name,
+        servicePrice: serviceObj.price,
+      });
+
+      if (result.success) {
+        setShowModal(false);
+        setNewAptName('');
+        setNewAptPhone('');
+        setNewAptTime('');
+        if (selectedDate === newAptDate) {
+          await loadAppointments(selectedDate);
+        }
+      } else {
+        setError(result.error || 'Error al crear turno.');
+      }
+    });
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
@@ -76,12 +161,20 @@ export default function TurnosClient() {
           <h1 className="text-3xl font-bold text-white">Turnos</h1>
           <p className="text-zinc-400 mt-1">Gestiona los turnos por día</p>
         </div>
-        <input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm [color-scheme:dark]"
-        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-4 py-2.5 rounded-xl transition-all duration-300 text-sm"
+          >
+            <Plus className="w-4 h-4" /> Nuevo Turno Manual
+          </button>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm [color-scheme:dark]"
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -173,6 +266,132 @@ export default function TurnosClient() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal Turno Manual */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Agendar Turno Manual</h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-zinc-500 hover:text-zinc-300"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Barbero</label>
+                  <select
+                    value={newAptBarber}
+                    onChange={(e) => setNewAptBarber(e.target.value)}
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  >
+                    <option value="">Selecciona un barbero</option>
+                    {barbers.map(b => (
+                      <option key={b._id} value={b._id}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Servicio</label>
+                  <select
+                    value={newAptService}
+                    onChange={(e) => setNewAptService(e.target.value)}
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  >
+                    <option value="">Selecciona un servicio</option>
+                    {services.map(s => (
+                      <option key={s._id} value={s._id}>{s.name} (${s.price.toLocaleString('es-AR')})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Fecha</label>
+                <CustomCalendar 
+                  selectedDate={newAptDate} 
+                  onDateChange={setNewAptDate}
+                  disabledDaysOfWeek={barbers.find(b => b._id === newAptBarber)?.unavailableDays}
+                />
+              </div>
+
+              {newAptBarber && newAptDate && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Horario</label>
+                  {loadingSlots ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="w-5 h-5 text-amber-500 animate-spin" />
+                    </div>
+                  ) : slots.length > 0 ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      {slots.map((slot) => (
+                        <button
+                          key={slot.time}
+                          onClick={() => slot.available && setNewAptTime(slot.time)}
+                          disabled={!slot.available}
+                          className={`py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                            slot.available
+                              ? newAptTime === slot.time
+                                ? 'bg-amber-500 text-zinc-950'
+                                : 'bg-[#141414] border border-zinc-800/80 text-zinc-300 hover:border-amber-600/50'
+                              : 'bg-zinc-900/50 text-zinc-700 cursor-not-allowed line-through'
+                          }`}
+                        >
+                          {slot.time}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-500">No hay horarios disponibles.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-800/80 mt-2">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Nombre (Obligatorio)</label>
+                  <input
+                    type="text"
+                    value={newAptName}
+                    onChange={(e) => setNewAptName(e.target.value)}
+                    placeholder="Ej: Juan"
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Teléfono (Obligatorio)</label>
+                  <input
+                    type="text"
+                    value={newAptPhone}
+                    onChange={(e) => setNewAptPhone(e.target.value)}
+                    placeholder="Ej: 0981123456"
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-950/30 border border-red-900/50 text-red-400 p-3 rounded-xl text-sm mt-2">
+                  {error}
+                </div>
+              )}
+
+              <button
+                onClick={handleCreateAppointment}
+                disabled={isPending || !newAptTime}
+                className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-amber-800 disabled:cursor-not-allowed text-zinc-950 font-bold py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm mt-4"
+              >
+                {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirmar Turno'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

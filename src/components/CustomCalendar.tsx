@@ -8,9 +8,10 @@ import { es } from 'date-fns/locale';
 interface CustomCalendarProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
+  disabledDaysOfWeek?: number[];
 }
 
-export default function CustomCalendar({ selectedDate, onDateChange }: CustomCalendarProps) {
+export default function CustomCalendar({ selectedDate, onDateChange, disabledDaysOfWeek = [] }: CustomCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const daysOfWeek = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
@@ -57,17 +58,20 @@ export default function CustomCalendar({ selectedDate, onDateChange }: CustomCal
           const isSelected = selectedDate === formattedDate;
           const isPast = isBefore(day, startOfDay(new Date()));
           const isCurrentMonth = isSameMonth(day, currentMonth);
+          const isDisabledDayOfWeek = disabledDaysOfWeek.includes(day.getDay());
+
+          const isDisabled = isPast || !isCurrentMonth || isDisabledDayOfWeek;
 
           return (
             <button
               key={idx}
-              disabled={isPast || !isCurrentMonth}
+              disabled={isDisabled}
               onClick={() => onDateChange(formattedDate)}
               className={`
                 relative h-10 w-full flex items-center justify-center rounded-xl text-sm font-medium transition-all duration-300
                 ${!isCurrentMonth ? 'text-zinc-700/30 cursor-not-allowed' : ''}
-                ${isPast && isCurrentMonth ? 'text-zinc-600 line-through cursor-not-allowed' : ''}
-                ${!isPast && isCurrentMonth && !isSelected ? 'text-zinc-300 hover:bg-zinc-800 hover:text-amber-400' : ''}
+                ${(isPast || isDisabledDayOfWeek) && isCurrentMonth ? 'text-zinc-600 line-through cursor-not-allowed' : ''}
+                ${!isDisabled && isCurrentMonth && !isSelected ? 'text-zinc-300 hover:bg-zinc-800 hover:text-amber-400' : ''}
                 ${isSelected ? 'bg-amber-500 text-zinc-950 shadow-[0_0_15px_rgba(217,176,108,0.4)] transform scale-105' : ''}
               `}
             >

@@ -18,6 +18,7 @@ export async function getBarbers() {
     _id: b._id.toString(),
     name: b.name,
     imageUrl: b.imageUrl,
+    unavailableDays: b.unavailableDays || [],
   }));
 }
 
@@ -26,8 +27,10 @@ export async function getServices() {
   const services = await Service.find({}).lean();
   return services.map((s: any) => {
     // Si se agenda desde la web, los cortes tienen un descuento (40.000 Gs)
+    const today = new Date();
     const isHaircut = s.name.toLowerCase().includes('corte');
-    const hasDiscount = isHaircut && s.price === 60000;
+    const isMiercoles = today.getDay() === 3;
+    const hasDiscount = isHaircut && s.price === 60000 && isMiercoles;
     
     return {
       _id: s._id.toString(),
@@ -44,8 +47,18 @@ export async function getServices() {
 export async function getAvailableSlots(barberId: string, dateStr: string) {
   await connectToDatabase();
 
+  const barber = await Barber.findById(barberId).lean();
+  if (!barber) return [];
+
   // Parsear la fecha (formato: YYYY-MM-DD)
   const date = parse(dateStr, 'yyyy-MM-dd', new Date());
+  const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, ..., 6 = Sábado
+
+  // Verificar si el día de la semana está en los días no disponibles del barbero
+  if (barber.unavailableDays && barber.unavailableDays.includes(dayOfWeek)) {
+    return [];
+  }
+
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
 
@@ -111,6 +124,7 @@ interface CreateAppointmentData {
 async function sendWhatsAppMessage(to: string, message: string) {
   try {
     const response = await fetch('https://api-whatsapp.elpedalbogado.com/enviar-turno', {
+    //const response = await fetch('http://localhost:3001/enviar-turno', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -173,16 +187,25 @@ export async function createAppointment(data: CreateAppointmentData) {
   const formattedTime = data.time;
 
   // Generar link de WhatsApp
-  //const CLIENT_NUMBER = `595${data.customerPhone}`;
-  const COMPANY_NUMBER = '595983475319'
-  const messageEmpresa = `Turno reservado para *${data.customerName}*\n para el servicio de *${data.serviceName}*\n con el barbero *${data.barberName}*\n el día *${formattedDate}*\n a las *${formattedTime}*.`;
-  //const messageCliente = `Hola ${data.customerName}!, tienes un turno para ${data.serviceName} con el barbero ${data.barberName} el día ${formattedDate} a las ${formattedTime}.`;
+  const CLIENT_NUMBER = `${data.customerPhone}`;
+  const COMPANY_NUMBER = '595985674309'
+  const messageEmpresa = `Turno reservado de *${data.customerName}*\nPara el servicio de *${data.serviceName}*\nCon el barbero *${data.barberName}*\nEl día *${formattedDate}*\nA las *${formattedTime}hs*.`;
+  const messageCliente = `Hola *${data.customerName}* 👋\n\nTu turno en *Benja Turnos* fue agendado con éxito. Solo falta que lo confirmes.\n\n📅 *Fecha:* ${formattedDate}\n⏰ *Hora:* ${formattedTime}\n💈 *Barbero:* ${data.barberName}\n✂️ *Servicio:* ${data.serviceName}\n💰 *Precio:* ${data.servicePrice} Gs.\n\n⚠️ *IMPORTANTE:* Para confirmar tu turno, responde a este mensaje con la palabra *SI*. Si deseas cancelarlo, responde *NO*.\n\nRecuerda que si no confirmas, el turno se liberará automáticamente 1 hora antes. ¡Te esperamos!`;
 
   // Envio de mensaje al nro de la empresa
-  await sendWhatsAppMessage(COMPANY_NUMBER, messageEmpresa);
+  
 
+  try {
+    await sendWhatsAppMessage(COMPANY_NUMBER, messageEmpresa);
+  } catch (error) {
+    console.error('Error al enviar mensaje al numero de la empresa:', error);
+  }
   // Envio de mensaje al nro del cliente
-  //await sendWhatsAppMessage(CLIENT_NUMBER, messageCliente);
+  try {
+    await sendWhatsAppMessage(CLIENT_NUMBER, messageCliente);
+  } catch (error) {
+    console.error('Error al enviar mensaje al numero del cliente:', error);
+  }
 
   return {
     success: true,

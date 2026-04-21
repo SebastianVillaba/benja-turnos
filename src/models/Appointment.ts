@@ -9,6 +9,7 @@ export interface IAppointment extends Document {
   serviceNameSnapshot: string; // Ej: "Limpieza Facial Exprés"
   priceSnapshot: number; // Ej: 30000
   status: 'pending' | 'confirmed' | 'cancelled';
+  reminderSent: { type: Boolean, default: false };
 }
 
 const AppointmentSchema: Schema = new Schema({
@@ -23,7 +24,8 @@ const AppointmentSchema: Schema = new Schema({
     type: String, 
     enum: ['pending', 'confirmed', 'cancelled'], 
     default: 'pending' 
-  }
+  },
+  reminderSent: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.models.Appointment || mongoose.model<IAppointment>('Appointment', AppointmentSchema);
