@@ -115,6 +115,73 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
   return slots;
 }
 
+export async function getAvailableSlots(barberId: string, dateStr: string) {
+
+  await connectToDatabase();
+
+  const barber = await Barber.findById(barberId).lean();
+  if (!barber) return [];
+
+  // 1. Definir zona horaria de Paraguay
+  const timeZone = 'America/Asuncion';
+
+  // Parsear la fecha recibida
+  const date = parse(dateStr, 'yyyy-MM-dd', new Date());
+  const dayOfWeek = date.getDay();
+
+  if (barber.unavailableDays && barber.unavailableDays.includes(dayOfWeek)) {
+    return [];
+  }
+
+  const dayStart = startOfDay(date);
+  const dayEnd = endOfDay(date);
+
+  const existingAppointments = await Appointment.find({
+    barberId,
+    date: { $gte: dayStart, $lte: dayEnd },
+    status: { $ne: 'cancelled' },
+  }).lean();
+
+  const workStart = new Date(dayStart);
+  workStart.setHours(9, 0, 0, 0);
+  const workEnd = new Date(dayStart);
+  workEnd.setHours(20, 0, 0, 0);
+
+  const slots: { time: string; available: boolean }[] = [];
+  let current = new Date(workStart);
+
+  // 2. OBTENER LA HORA REAL DE PARAGUAY PARA EL SERVIDOR
+  // Esto reemplaza al new Date() simple que fallaba en Vercel
+  const now = toZonedTime(new Date(), timeZone);
+  
+  while (isBefore(current, workEnd)) {
+    const slotTime = format(current, 'HH:mm');
+
+    const isOccupied = existingAppointments.some((apt: any) => {
+      const aptTime = format(new Date(apt.date), 'HH:mm');
+      return aptTime === slotTime;
+    });
+
+    // 3. CONSTRUIR EL SLOT EN LA ZONA HORARIA CORRECTA
+    // Creamos la fecha del slot y le decimos que pertenece a Asunción
+    const slotDateTime = new Date(date);
+    slotDateTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+    const zonedSlotDateTime = toZonedTime(slotDateTime, timeZone);
+
+    // Comparamos el slot de Paraguay contra el "ahora" de Paraguay
+    const isPast = isBefore(zonedSlotDateTime, now);
+
+    slots.push({
+      time: slotTime,
+      available: !isOccupied && !isPast,
+    });
+
+    current = addMinutes(current, 30);
+  }
+
+  return slots;
+}
+
 // ============================================================
 // MUTACIÓN: Crear turno
 // ============================================================
