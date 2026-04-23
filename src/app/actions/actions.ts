@@ -6,6 +6,14 @@ import Service from '@/models/Service';
 import Appointment from '@/models/Appointment';
 import { startOfDay, endOfDay, addMinutes, format, parse, isBefore } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toZonedTime } from 'date-fns-tz';
+
+
+
+// ============================================================
+//   DEFINIMOS LA ZONA HORARIA DONDE SE RENDERIZARÁ LA PAGINA
+// ============================================================
+const timeZone = 'America/Asuncion';
 
 // ============================================================
 // QUERIES para el flujo de reserva (públicas)
@@ -78,21 +86,23 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
   // Generar slots cada 30 minutos
   const slots: { time: string; available: boolean }[] = [];
   let current = new Date(workStart);
-  const now = new Date();
-
+  const now = toZonedTime(new Date(), timeZone);
+  
   while (isBefore(current, workEnd)) {
     const slotTime = format(current, 'HH:mm');
 
-    // Verificar si este slot ya está ocupado
     const isOccupied = existingAppointments.some((apt: any) => {
       const aptTime = format(new Date(apt.date), 'HH:mm');
       return aptTime === slotTime;
     });
 
-    // Si la fecha es hoy, no mostrar slots pasados
+    // Creamos la fecha del slot y le decimos que pertenece a Asunción
     const slotDateTime = new Date(date);
     slotDateTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
-    const isPast = isBefore(slotDateTime, now);
+    const zonedSlotDateTime = toZonedTime(slotDateTime, timeZone);
+
+    // Comparamos el slot de Paraguay contra el "ahora" de Paraguay
+    const isPast = isBefore(zonedSlotDateTime, now);
 
     slots.push({
       time: slotTime,
