@@ -8,6 +8,7 @@ import { getSession } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { startOfDay, endOfDay, format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { toZonedTime } from 'date-fns-tz';
 
 // Helper: verificar que el usuario esté autenticado
 async function requireAuth() {
@@ -232,7 +233,7 @@ export async function getDashboardStats() {
   await requireAuth();
   await connectToDatabase();
 
-  const today = new Date();
+  const today = toZonedTime(new Date(), 'America/Asuncion');
   const dayStart = startOfDay(today);
   const dayEnd = endOfDay(today);
 

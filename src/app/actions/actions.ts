@@ -8,13 +8,6 @@ import { startOfDay, endOfDay, addMinutes, format, parse, isBefore } from 'date-
 import { es } from 'date-fns/locale';
 import { toZonedTime } from 'date-fns-tz';
 
-
-
-// ============================================================
-//   DEFINIMOS LA ZONA HORARIA DONDE SE RENDERIZARÁ LA PAGINA
-// ============================================================
-const timeZone = 'America/Asuncion';
-
 // ============================================================
 // QUERIES para el flujo de reserva (públicas)
 // ============================================================
@@ -35,7 +28,7 @@ export async function getServices() {
   const services = await Service.find({}).lean();
   return services.map((s: any) => {
     // Si se agenda desde la web, los cortes tienen un descuento (40.000 Gs)
-    const today = new Date();
+    const today = toZonedTime(new Date(), 'America/Asuncion');
     const isHaircut = s.name.toLowerCase().includes('corte');
     const isMiercoles = today.getDay() === 3;
     const hasDiscount = isHaircut && s.price === 60000 && isMiercoles;
@@ -57,9 +50,6 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
 
   const barber = await Barber.findById(barberId).lean();
   if (!barber) return [];
-
-  // 1. Definir zona horaria de Paraguay
-  const timeZone = 'America/Asuncion';
 
   // Parsear la fecha recibida
   const date = parse(dateStr, 'yyyy-MM-dd', new Date());
@@ -86,9 +76,7 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
   const slots: { time: string; available: boolean }[] = [];
   let current = new Date(workStart);
 
-  // 2. OBTENER LA HORA REAL DE PARAGUAY PARA EL SERVIDOR
-  // Esto reemplaza al new Date() simple que fallaba en Vercel
-  const now = toZonedTime(new Date(), timeZone);
+  const now = toZonedTime(new Date(), 'America/Asuncion');
   
   while (isBefore(current, workEnd)) {
     const slotTime = format(current, 'HH:mm');
@@ -98,14 +86,10 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
       return aptTime === slotTime;
     });
 
-    // 3. CONSTRUIR EL SLOT EN LA ZONA HORARIA CORRECTA
-    // Creamos la fecha del slot y le decimos que pertenece a Asunción
     const slotDateTime = new Date(date);
     slotDateTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
-    const zonedSlotDateTime = toZonedTime(slotDateTime, timeZone);
 
-    // Comparamos el slot de Paraguay contra el "ahora" de Paraguay
-    const isPast = isBefore(zonedSlotDateTime, now);
+    const isPast = isBefore(slotDateTime, now);
 
     slots.push({
       time: slotTime,
