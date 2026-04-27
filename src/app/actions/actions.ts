@@ -99,7 +99,7 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
     current = addMinutes(current, 60);
   }
 
-  return slots;
+  return slots
 }
 
 // ============================================================
