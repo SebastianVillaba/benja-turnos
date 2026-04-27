@@ -96,7 +96,7 @@ export async function getAvailableSlots(barberId: string, dateStr: string) {
       available: !isOccupied && !isPast,
     });
 
-    current = addMinutes(current, 30);
+    current = addMinutes(current, 60);
   }
 
   return slots;
@@ -185,16 +185,16 @@ export async function createAppointment(data: CreateAppointmentData) {
 
   // Generar link de WhatsApp
   const CLIENT_NUMBER = `${data.customerPhone}`;
-  const COMPANY_NUMBER = '595985674309';
-  const messageEmpresa = `Turno reservado de *${data.customerName}*\nPara el servicio de *${data.serviceName}*\nCon el barbero *${data.barberName}*\nEl día *${formattedDate}*\nA las *${formattedTime}hs*.`;
+  const COMPANY_NUMBER = '595983545282';
+  //const messageEmpresa = `Turno reservado de *${data.customerName}*\nPara el servicio de *${data.serviceName}*\nCon el barbero *${data.barberName}*\nEl día *${formattedDate}*\nA las *${formattedTime}hs*.`;
   const messageCliente = `Hola *${data.customerName}* 👋\n\nTu turno en *Benja Turnos* fue agendado con éxito. Solo falta que lo confirmes.\n\n📅 *Fecha:* ${formattedDate}\n⏰ *Hora:* ${formattedTime}\n💈 *Barbero:* ${data.barberName}\n✂️ *Servicio:* ${data.serviceName}\n💰 *Precio:* ${data.servicePrice} Gs.\n\n⚠️ *IMPORTANTE:* Para confirmar tu turno, responde a este mensaje con la palabra *SI*. Si deseas cancelarlo, responde *NO*.\n\nRecuerda que si no confirmas, el turno se liberará automáticamente 1 hora antes. ¡Te esperamos!`;
 
   // Envio de mensaje al nro de la empresa
-  try {
-    await sendWhatsAppMessage(COMPANY_NUMBER, messageEmpresa);
-  } catch (error) {
-    console.error('Error al enviar mensaje al numero de la empresa:', error);
-  }
+  // try {
+  //   await sendWhatsAppMessage(COMPANY_NUMBER, messageEmpresa);
+  // } catch (error) {
+  //   console.error('Error al enviar mensaje al numero de la empresa:', error);
+  // }
   // Envio de mensaje al nro del cliente
   try {
     await sendWhatsAppMessage(CLIENT_NUMBER, messageCliente);
