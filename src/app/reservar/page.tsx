@@ -1,4 +1,4 @@
-import { getBarbers, getServices } from '@/app/actions/actions';
+import { getActiveBarbers, getServices } from '@/app/actions/actions';
 import ReservarClient from './ReservarClient';
 
 export const metadata = {
@@ -7,7 +7,7 @@ export const metadata = {
 };
 
 export default async function ReservarPage() {
-  const barbers = await getBarbers();
+  const barbers = await getActiveBarbers();
   const services = await getServices();
 
   return (

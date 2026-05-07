@@ -23,6 +23,17 @@ export async function getBarbers() {
   }));
 }
 
+export async function getActiveBarbers() {
+  await connectToDatabase();
+  const barbers = await Barber.find({ isActive: true }).lean();
+  return barbers.map((b: any) => ({
+    _id: b._id.toString(),
+    name: b.name,
+    imageUrl: b.imageUrl,
+    unavailableDays: b.unavailableDays || [],
+  }));
+}
+
 export async function getServices() {
   await connectToDatabase();
   const services = await Service.find({}).lean();
