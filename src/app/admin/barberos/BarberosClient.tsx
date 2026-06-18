@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { createBarber, updateBarber, deleteBarber, getBarbersAdmin } from '@/app/actions/admin-actions';
-import { Plus, Pencil, Trash2, X, Loader2, User, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Loader2, Calendar as CalendarIcon, MapPin } from 'lucide-react';
 
 interface BarberItem {
   _id: string;
@@ -10,6 +10,15 @@ interface BarberItem {
   imageUrl: string;
   isActive: boolean;
   unavailableDays?: number[];
+  branchAssignments?: {
+    branchId: string;
+    workDays: number[];
+  }[];
+}
+
+interface Branch {
+  _id: string;
+  name: string;
 }
 
 const DAYS_OF_WEEK = [
@@ -22,12 +31,22 @@ const DAYS_OF_WEEK = [
   { value: 0, label: 'Domingo' }
 ];
 
-export default function BarberosClient({ initialBarbers }: { initialBarbers: BarberItem[] }) {
+export default function BarberosClient({
+  initialBarbers,
+  branches = []
+}: {
+  initialBarbers: BarberItem[];
+  branches: Branch[];
+}) {
   const [barbers, setBarbers] = useState(initialBarbers);
   const [showModal, setShowModal] = useState(false);
   const [editingBarber, setEditingBarber] = useState<BarberItem | null>(null);
-  const [unavailableDays, setUnavailableDays] = useState<number[]>([]);
-  const [newDay, setNewDay] = useState<number>(-1);
+  
+  // Asignaciones de días a sucursales
+  const [dayAssignments, setDayAssignments] = useState<Record<number, string>>({
+    1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
+  });
+
   const [isPending, startTransition] = useTransition();
 
   const refreshBarbers = async () => {
@@ -36,7 +55,24 @@ export default function BarberosClient({ initialBarbers }: { initialBarbers: Bar
   };
 
   const handleSubmit = async (formData: FormData) => {
-    formData.append('unavailableDays', JSON.stringify(unavailableDays));
+    // Generar branchAssignments y unavailableDays en base a dayAssignments
+    const assignments = branches.map(branch => {
+      const workDays = Object.entries(dayAssignments)
+        .filter(([_, branchId]) => branchId === branch._id)
+        .map(([day]) => parseInt(day));
+      return {
+        branchId: branch._id,
+        workDays
+      };
+    }).filter(a => a.workDays.length > 0);
+
+    const unDays = Object.entries(dayAssignments)
+      .filter(([_, branchId]) => branchId === '')
+      .map(([day]) => parseInt(day));
+
+    formData.append('branchAssignments', JSON.stringify(assignments));
+    formData.append('unavailableDays', JSON.stringify(unDays));
+
     startTransition(async () => {
       if (editingBarber) {
         await updateBarber(editingBarber._id, formData);
@@ -46,7 +82,6 @@ export default function BarberosClient({ initialBarbers }: { initialBarbers: Bar
       await refreshBarbers();
       setShowModal(false);
       setEditingBarber(null);
-      setUnavailableDays([]);
     });
   };
 
@@ -60,31 +95,34 @@ export default function BarberosClient({ initialBarbers }: { initialBarbers: Bar
 
   const openCreate = () => {
     setEditingBarber(null);
-    setUnavailableDays([]);
+    setDayAssignments({
+      1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
+    });
     setShowModal(true);
   };
 
   const openEdit = (barber: BarberItem) => {
     setEditingBarber(barber);
-    setUnavailableDays(barber.unavailableDays || []);
+    
+    // Inicializar asignaciones
+    const initialAssignments: Record<number, string> = {
+      1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
+    };
+    
+    if (barber.branchAssignments) {
+      barber.branchAssignments.forEach(assignment => {
+        assignment.workDays.forEach(day => {
+          initialAssignments[day] = assignment.branchId;
+        });
+      });
+    }
+    setDayAssignments(initialAssignments);
     setShowModal(true);
   };
 
-  const handleAddDay = () => {
-    if (newDay === -1) return;
-    if (!unavailableDays.includes(newDay)) {
-      setUnavailableDays([...unavailableDays, newDay]);
-    }
-    setNewDay(-1);
-  };
-
-  const handleRemoveDay = (dayToRemove: number) => {
-    setUnavailableDays(unavailableDays.filter(d => d !== dayToRemove));
-  };
-
-  const getDayName = (dayValue: number) => {
-    const day = DAYS_OF_WEEK.find(d => d.value === dayValue);
-    return day ? day.label : '';
+  const getBranchName = (branchId: string) => {
+    const branch = branches.find(b => b._id === branchId);
+    return branch ? branch.name : 'Desconocida';
   };
 
   return (
@@ -110,47 +148,66 @@ export default function BarberosClient({ initialBarbers }: { initialBarbers: Bar
           barbers.map((barber) => (
             <div
               key={barber._id}
-              className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl overflow-hidden group transition-all duration-300 hover:border-zinc-700/80"
+              className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl overflow-hidden group transition-all duration-300 hover:border-zinc-700/80 flex flex-col justify-between"
             >
-              <div className="aspect-square w-full overflow-hidden relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={barber.imageUrl}
-                  alt={barber.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                {/* Status badge */}
-                <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${
-                  barber.isActive
-                    ? 'bg-green-950/80 text-green-400 border border-green-800/50'
-                    : 'bg-red-950/80 text-red-400 border border-red-800/50'
-                }`}>
-                  {barber.isActive ? 'Activo' : 'Inactivo'}
+              <div>
+                <div className="aspect-square w-full overflow-hidden relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={barber.imageUrl}
+                    alt={barber.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {/* Status badge */}
+                  <div className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium ${
+                    barber.isActive
+                      ? 'bg-green-950/80 text-green-400 border border-green-800/50'
+                      : 'bg-red-950/80 text-red-400 border border-red-800/50'
+                  }`}>
+                    {barber.isActive ? 'Activo' : 'Inactivo'}
+                  </div>
+                </div>
+                
+                {/* Visual scheduler info on card */}
+                <div className="p-4 border-b border-zinc-800/50">
+                  <h3 className="text-lg font-bold text-white mb-2">{barber.name}</h3>
+                  <div className="space-y-1">
+                    <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
+                      <CalendarIcon className="w-3.5 h-3.5 text-amber-500" /> Horario de Atención
+                    </p>
+                    {barber.branchAssignments && barber.branchAssignments.length > 0 ? (
+                      barber.branchAssignments.map((assignment) => (
+                        <div key={assignment.branchId} className="text-xs text-zinc-400 flex items-start gap-1">
+                          <MapPin className="w-3 h-3 text-zinc-500 shrink-0 mt-0.5" />
+                          <span>
+                            <strong className="text-amber-500/80 font-medium">{getBranchName(assignment.branchId)}:</strong>{' '}
+                            {assignment.workDays
+                              .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+                              .map(d => DAYS_OF_WEEK.find(day => day.value === d)?.label)
+                              .join(', ')}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-zinc-500 italic">Sin asignaciones de sucursal configuradas.</p>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="p-4 flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-bold text-white">{barber.name}</h3>
-                  {barber.unavailableDays && barber.unavailableDays.length > 0 && (
-                    <p className="text-xs text-zinc-500 mt-1 flex items-center gap-1">
-                      <CalendarIcon className="w-3 h-3" /> {barber.unavailableDays.length} días inactivos fijos
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openEdit(barber)}
-                    className="w-8 h-8 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center text-zinc-400 hover:text-amber-500 transition-colors"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(barber._id)}
-                    className="w-8 h-8 rounded-lg bg-zinc-800/50 hover:bg-red-950/50 flex items-center justify-center text-zinc-400 hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+              
+              <div className="p-4 flex items-center justify-end gap-2 bg-[#0c0c0c]">
+                <button
+                  onClick={() => openEdit(barber)}
+                  className="w-8 h-8 rounded-lg bg-zinc-800/50 hover:bg-zinc-700/50 flex items-center justify-center text-zinc-400 hover:text-amber-500 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(barber._id)}
+                  className="w-8 h-8 rounded-lg bg-zinc-800/50 hover:bg-red-950/50 flex items-center justify-center text-zinc-400 hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           ))
@@ -205,57 +262,36 @@ export default function BarberosClient({ initialBarbers }: { initialBarbers: Bar
                 </select>
               </div>
 
-              {/* Días no disponibles (fijos) */}
-              <div className="border-t border-zinc-800/80 pt-4 mt-2">
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Días no disponibles (Fijos)</label>
-                <p className="text-xs text-zinc-500 mb-3">Selecciona los días de la semana en los que este barbero NUNCA atiende.</p>
-                <div className="flex gap-2 mb-3">
-                  <select
-                    value={newDay}
-                    onChange={(e) => setNewDay(parseInt(e.target.value))}
-                    className="flex-1 bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
-                  >
-                    <option value={-1}>Selecciona un día...</option>
-                    {DAYS_OF_WEEK.map(day => (
-                      <option key={day.value} value={day.value}>{day.label}</option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleAddDay}
-                    disabled={newDay === -1}
-                    className="bg-zinc-800 hover:bg-zinc-700 disabled:bg-zinc-900 disabled:text-zinc-600 text-white px-4 py-2.5 rounded-xl transition-colors text-sm font-medium"
-                  >
-                    Agregar
-                  </button>
+              {/* Asignación de Sucursales por Día */}
+              <div className="border-t border-zinc-800/80 pt-4 mt-4">
+                <label className="block text-sm font-medium text-zinc-300 mb-1">Asignación de Sucursales por Día</label>
+                <p className="text-[11px] text-zinc-500 mb-4">Define en qué sucursal trabaja cada día o si es su día libre.</p>
+                <div className="space-y-2.5">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <div key={day.value} className="flex items-center justify-between bg-[#141414] border border-zinc-800/50 px-4 py-2.5 rounded-xl gap-2">
+                      <span className="text-sm font-medium text-zinc-300 shrink-0">{day.label}</span>
+                      <select
+                        value={dayAssignments[day.value] || ''}
+                        onChange={(e) => setDayAssignments({
+                          ...dayAssignments,
+                          [day.value]: e.target.value
+                        })}
+                        className="bg-[#0d0d0d] border border-zinc-800/80 rounded-lg px-3 py-1.5 text-zinc-200 text-sm focus:border-amber-600/50 focus:outline-none transition-colors max-w-[200px]"
+                      >
+                        <option value="">No trabaja (Libre)</option>
+                        {branches.map((b) => (
+                          <option key={b._id} value={b._id}>{b.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
                 </div>
-
-                {unavailableDays.length > 0 ? (
-                  <ul className="space-y-2">
-                    {unavailableDays.sort().map((dayValue) => (
-                      <li key={dayValue} className="flex items-center justify-between bg-[#141414] border border-zinc-800/50 px-3 py-2 rounded-lg">
-                        <span className="text-sm text-zinc-300 capitalize">
-                          {getDayName(dayValue)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveDay(dayValue)}
-                          className="text-zinc-500 hover:text-red-400 p-1 rounded transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-zinc-500 italic">No hay días fijos inactivos.</p>
-                )}
               </div>
 
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-amber-800 text-zinc-950 font-bold py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm mt-4"
+                className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-amber-800 text-zinc-950 font-bold py-3 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm mt-6"
               >
                 {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 {editingBarber ? 'Guardar Cambios' : 'Crear Barbero'}

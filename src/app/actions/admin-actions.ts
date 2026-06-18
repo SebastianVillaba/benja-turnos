@@ -4,6 +4,7 @@ import connectToDatabase from '@/lib/mongodb';
 import Service from '@/models/Service';
 import Barber from '@/models/Barber';
 import Appointment from '@/models/Appointment';
+import Branch from '@/models/Branch';
 import { getSession } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
 import { startOfDay, endOfDay, format } from 'date-fns';
@@ -28,7 +29,8 @@ export async function getServicesAdmin() {
   return services.map((s: any) => ({
     _id: s._id.toString(),
     name: s.name,
-    price: s.price,
+    precioCentro: s.precioCentro,
+    precioCambyreta: s.precioCambyreta,
     description: s.description || '',
     durationMinutes: s.durationMinutes || 30,
   }));
@@ -40,7 +42,8 @@ export async function createService(formData: FormData) {
 
   await Service.create({
     name: formData.get('name') as string,
-    price: Number(formData.get('price')),
+    precioCentro: Number(formData.get('precioCentro')),
+    precioCambyreta: Number(formData.get('precioCambyreta')),
     description: formData.get('description') as string,
     durationMinutes: Number(formData.get('durationMinutes')) || 30,
   });
@@ -55,7 +58,8 @@ export async function updateService(id: string, formData: FormData) {
 
   await Service.findByIdAndUpdate(id, {
     name: formData.get('name') as string,
-    price: Number(formData.get('price')),
+    precioCentro: Number(formData.get('precioCentro')),
+    precioCambyreta: Number(formData.get('precioCambyreta')),
     description: formData.get('description') as string,
     durationMinutes: Number(formData.get('durationMinutes')) || 30,
   });
@@ -86,6 +90,10 @@ export async function getBarbersAdmin() {
     imageUrl: b.imageUrl,
     isActive: b.isActive,
     unavailableDays: b.unavailableDays || [],
+    branchAssignments: b.branchAssignments ? b.branchAssignments.map((ba: any) => ({
+      branchId: ba.branchId.toString(),
+      workDays: ba.workDays || []
+    })) : []
   }));
 }
 
@@ -96,11 +104,15 @@ export async function createBarber(formData: FormData) {
   const unavailableDaysStr = formData.get('unavailableDays') as string;
   const unavailableDays = unavailableDaysStr ? JSON.parse(unavailableDaysStr) : [];
 
+  const branchAssignmentsStr = formData.get('branchAssignments') as string;
+  const branchAssignments = branchAssignmentsStr ? JSON.parse(branchAssignmentsStr) : [];
+
   await Barber.create({
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
     unavailableDays,
+    branchAssignments,
   });
 
   revalidatePath('/admin/barberos');
@@ -114,11 +126,15 @@ export async function updateBarber(id: string, formData: FormData) {
   const unavailableDaysStr = formData.get('unavailableDays') as string;
   const unavailableDays = unavailableDaysStr ? JSON.parse(unavailableDaysStr) : [];
 
+  const branchAssignmentsStr = formData.get('branchAssignments') as string;
+  const branchAssignments = branchAssignmentsStr ? JSON.parse(branchAssignmentsStr) : [];
+
   await Barber.findByIdAndUpdate(id, {
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
     unavailableDays,
+    branchAssignments,
   });
 
   revalidatePath('/admin/barberos');
@@ -142,6 +158,7 @@ import { parse } from 'date-fns';
 interface AdminCreateAppointmentData {
   barberId: string;
   serviceId: string;
+  branchId: string;
   customerName: string;
   customerPhone: string;
   date: string; // YYYY-MM-DD
@@ -173,6 +190,7 @@ export async function adminCreateAppointment(data: AdminCreateAppointmentData) {
   await Appointment.create({
     barberId: data.barberId,
     serviceId: data.serviceId,
+    branchId: data.branchId,
     customerName: data.customerName,
     customerPhone: data.customerPhone,
     date: appointmentDate,
@@ -199,6 +217,7 @@ export async function getAppointmentsByDate(dateStr: string) {
     date: { $gte: dayStart, $lte: dayEnd },
   })
     .populate('barberId', 'name imageUrl')
+    .populate('branchId', 'name')
     .sort({ date: 1 })
     .lean();
 
@@ -216,6 +235,10 @@ export async function getAppointmentsByDate(dateStr: string) {
       _id: a.barberId._id?.toString() || a.barberId.toString(),
       name: a.barberId.name || 'Desconocido',
       imageUrl: a.barberId.imageUrl || '',
+    } : null,
+    branch: a.branchId ? {
+      _id: a.branchId._id?.toString() || a.branchId.toString(),
+      name: a.branchId.name || 'Desconocida',
     } : null,
   }));
 }

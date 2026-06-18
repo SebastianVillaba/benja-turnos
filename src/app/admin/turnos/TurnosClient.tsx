@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import { getAppointmentsByDate, updateAppointmentStatus, adminCreateAppointment } from '@/app/actions/admin-actions';
 import { getAvailableSlots } from '@/app/actions/actions';
-import { CalendarCheck, CheckCircle, XCircle, Clock, Loader2, Phone, User, Plus, X } from 'lucide-react';
+import { CalendarCheck, CheckCircle, XCircle, Clock, Loader2, Phone, User, Plus, X, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import CustomCalendar from '@/components/CustomCalendar';
 
@@ -12,12 +12,22 @@ interface Barber {
   name: string;
   imageUrl: string;
   unavailableDays?: number[];
+  branchAssignments?: {
+    branchId: string;
+    workDays: number[];
+  }[];
 }
 
 interface Service {
   _id: string;
   name: string;
-  price: number;
+  precioCentro: number;
+  precioCambyreta: number;
+}
+
+interface Branch {
+  _id: string;
+  name: string;
 }
 
 interface AppointmentItem {
@@ -35,22 +45,29 @@ interface AppointmentItem {
     name: string;
     imageUrl: string;
   } | null;
+  branch?: {
+    _id: string;
+    name: string;
+  } | null;
 }
 
 interface TurnosClientProps {
   barbers?: Barber[];
   services?: Service[];
+  branches?: Branch[];
 }
 
-export default function TurnosClient({ barbers = [], services = [] }: TurnosClientProps) {
+export default function TurnosClient({ barbers = [], services = [], branches = [] }: TurnosClientProps) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [selectedDate, setSelectedDate] = useState(today);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [filterBranchId, setFilterBranchId] = useState<string>('all');
   const [isPending, startTransition] = useTransition();
   const [loading, setLoading] = useState(true);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
+  const [newAptBranch, setNewAptBranch] = useState('');
   const [newAptBarber, setNewAptBarber] = useState('');
   const [newAptService, setNewAptService] = useState('');
   const [newAptDate, setNewAptDate] = useState(today);
@@ -89,8 +106,12 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
     cancelled: { label: 'Cancelado', color: 'text-red-500', bg: 'bg-red-950/30', border: 'border-red-900/50' },
   };
 
-  // Group appointments by barber
-  const groupedAppointments = appointments.reduce((acc, apt) => {
+  const filteredAppointments = appointments.filter(apt => {
+    if (filterBranchId === 'all') return true;
+    return apt.branch?._id === filterBranchId;
+  });
+
+  const groupedAppointments = filteredAppointments.reduce((acc, apt) => {
     const barberId = apt.barber?._id || 'unassigned';
     if (!acc[barberId]) {
       acc[barberId] = { barber: apt.barber, appointments: [] };
@@ -101,14 +122,13 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
 
   const groups = Object.values(groupedAppointments);
 
-  // Load slots for modal
   useEffect(() => {
-    if (newAptBarber && newAptDate) {
+    if (newAptBarber && newAptDate && newAptBranch) {
       setLoadingSlots(true);
-      getAvailableSlots(newAptBarber, newAptDate).then((data) => {
+      getAvailableSlots(newAptBarber, newAptDate, newAptBranch).then((data) => {
         setSlots(data);
         setLoadingSlots(false);
-        setNewAptTime(''); // Reset time if barber or date changes
+        setNewAptTime('');
       }).catch(() => {
         setSlots([]);
         setLoadingSlots(false);
@@ -116,28 +136,35 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
     } else {
       setSlots([]);
     }
-  }, [newAptBarber, newAptDate]);
+  }, [newAptBarber, newAptDate, newAptBranch]);
 
   const handleCreateAppointment = () => {
-    if (!newAptBarber || !newAptService || !newAptDate || !newAptTime || !newAptName.trim() || !newAptPhone.trim()) {
-      setError('Por favor completa todos los campos (Nombre y Teléfono son obligatorios).');
+    if (!newAptBranch || !newAptBarber || !newAptService || !newAptDate || !newAptTime || !newAptName.trim() || !newAptPhone.trim()) {
+      setError('Por favor completa todos los campos (Sucursal, Barbero, Servicio, Horario, Nombre y Teléfono son obligatorios).');
       return;
     }
 
     const serviceObj = services.find(s => s._id === newAptService);
     if (!serviceObj) return;
 
+    const selectedBranchObj = branches.find(b => b._id === newAptBranch);
+    if (!selectedBranchObj) return;
+
+    const isCentro = selectedBranchObj.name === 'Centro';
+    const price = isCentro ? serviceObj.precioCentro : serviceObj.precioCambyreta;
+
     setError('');
     startTransition(async () => {
       const result = await adminCreateAppointment({
         barberId: newAptBarber,
         serviceId: newAptService,
+        branchId: newAptBranch,
         date: newAptDate,
         time: newAptTime,
         customerName: newAptName,
         customerPhone: newAptPhone,
         serviceName: serviceObj.name,
-        servicePrice: serviceObj.price,
+        servicePrice: price,
       });
 
       if (result.success) {
@@ -154,6 +181,19 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
     });
   };
 
+  const getDisabledDays = () => {
+    if (!newAptBarber || !newAptBranch) return [];
+    const barber = barbers.find(b => b._id === newAptBarber);
+    if (!barber) return [];
+
+    const assignment = barber.branchAssignments?.find(a => a.branchId === newAptBranch);
+    if (assignment) {
+      const workDays = assignment.workDays || [];
+      return [0, 1, 2, 3, 4, 5, 6].filter(d => !workDays.includes(d));
+    }
+    return barber.unavailableDays || [];
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
@@ -161,10 +201,20 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
           <h1 className="text-3xl font-bold text-white">Turnos</h1>
           <p className="text-zinc-400 mt-1">Gestiona los turnos por día</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={filterBranchId}
+            onChange={(e) => setFilterBranchId(e.target.value)}
+            className="bg-[#0d0d0d] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+          >
+            <option value="all">Todas las Sucursales</option>
+            {branches.map(b => (
+              <option key={b._id} value={b._id}>{b.name}</option>
+            ))}
+          </select>
           <button
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-4 py-2.5 rounded-xl transition-all duration-300 text-sm"
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-bold px-4 py-2.5 rounded-xl transition-all duration-300 text-sm whitespace-nowrap"
           >
             <Plus className="w-4 h-4" /> Nuevo Turno Manual
           </button>
@@ -181,19 +231,17 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
         </div>
-      ) : appointments.length === 0 ? (
+      ) : filteredAppointments.length === 0 ? (
         <div className="text-center py-20">
           <CalendarCheck className="w-12 h-12 text-zinc-700 mx-auto mb-4" />
-          <p className="text-zinc-500">No hay turnos para esta fecha.</p>
+          <p className="text-zinc-500">No hay turnos para esta sucursal/fecha.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
           {groups.map((group) => (
             <div key={group.barber?._id || 'unassigned'} className="space-y-4">
-              {/* Barber Header */}
               <div className="flex items-center gap-4 bg-[#141414] border border-zinc-800/80 p-4 rounded-2xl shadow-sm">
                 {group.barber?.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={group.barber.imageUrl} alt={group.barber.name} className="w-12 h-12 rounded-full object-cover border-2 border-amber-500/50" />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center border-2 border-zinc-700">
@@ -208,7 +256,6 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                 </div>
               </div>
 
-              {/* Barber's Appointments */}
               <div className="space-y-3">
                 {group.appointments.map((apt) => {
                   const config = statusConfig[apt.status] || statusConfig.pending;
@@ -218,15 +265,21 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                       className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-5 hover:border-zinc-700/80 transition-all duration-300 shadow-sm"
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        {/* Info */}
                         <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <span className="text-lg font-bold text-amber-500">{apt.time}</span>
-                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${config.bg} ${config.color} border ${config.border}`}>
-                              {config.label}
-                            </span>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg font-bold text-amber-500">{apt.time}</span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold tracking-wider ${config.bg} ${config.color} border ${config.border}`}>
+                                {config.label.toUpperCase()}
+                              </span>
+                            </div>
+                            {apt.branch && (
+                              <span className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                <MapPin className="w-3 h-3" /> {apt.branch.name}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 text-zinc-300">
+                          <div className="flex items-center gap-2 text-zinc-300 pt-1">
                             <User className="w-4 h-4 text-zinc-500" />
                             <span className="font-medium">{apt.customerName}</span>
                           </div>
@@ -234,26 +287,25 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                             <Phone className="w-3.5 h-3.5 text-zinc-500" />
                             <span>{apt.customerPhone}</span>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between pt-1">
                             <span className="text-sm text-zinc-400">{apt.serviceNameSnapshot}</span>
-                            <span className="text-amber-500 font-medium">${apt.priceSnapshot.toLocaleString('es-AR')}</span>
+                            <span className="text-amber-500 font-medium">Gs. {apt.priceSnapshot.toLocaleString('es-AR')}</span>
                           </div>
                         </div>
 
-                        {/* Actions */}
                         {apt.status === 'pending' && (
-                          <div className="flex items-center gap-2 sm:flex-col">
+                          <div className="flex items-center gap-2 sm:flex-col shrink-0">
                             <button
                               onClick={() => handleStatusChange(apt._id, 'confirmed')}
                               disabled={isPending}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition-all text-sm font-medium disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-950/30 border border-green-900/50 text-green-400 hover:bg-green-900/40 hover:text-green-300 transition-all text-sm font-medium disabled:opacity-50 w-full justify-center"
                             >
                               <CheckCircle className="w-4 h-4" /> Confirmar
                             </button>
                             <button
                               onClick={() => handleStatusChange(apt._id, 'cancelled')}
                               disabled={isPending}
-                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-all text-sm font-medium disabled:opacity-50"
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-950/30 border border-red-900/50 text-red-400 hover:bg-red-900/40 hover:text-red-300 transition-all text-sm font-medium disabled:opacity-50 w-full justify-center"
                             >
                               <XCircle className="w-4 h-4" /> Cancelar
                             </button>
@@ -269,33 +321,38 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
         </div>
       )}
 
-      {/* Modal Turno Manual */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">Agendar Turno Manual</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-zinc-500 hover:text-zinc-300"
-              >
+              <button onClick={() => setShowModal(false)} className="text-zinc-500 hover:text-zinc-300">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Sucursal</label>
+                  <select
+                    value={newAptBranch}
+                    onChange={(e) => { setNewAptBranch(e.target.value); setNewAptTime(''); }}
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  >
+                    <option value="">Selecciona sucursal</option>
+                    {branches.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                  </select>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-1.5">Barbero</label>
                   <select
                     value={newAptBarber}
-                    onChange={(e) => setNewAptBarber(e.target.value)}
+                    onChange={(e) => { setNewAptBarber(e.target.value); setNewAptTime(''); }}
                     className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                   >
-                    <option value="">Selecciona un barbero</option>
-                    {barbers.map(b => (
-                      <option key={b._id} value={b._id}>{b.name}</option>
-                    ))}
+                    <option value="">Selecciona barbero</option>
+                    {barbers.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -305,24 +362,33 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                     onChange={(e) => setNewAptService(e.target.value)}
                     className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                   >
-                    <option value="">Selecciona un servicio</option>
-                    {services.map(s => (
-                      <option key={s._id} value={s._id}>{s.name} (${s.price.toLocaleString('es-AR')})</option>
-                    ))}
+                    <option value="">Selecciona servicio</option>
+                    {services.map(s => {
+                      const selectedBranchObj = branches.find(b => b._id === newAptBranch);
+                      const isCentro = selectedBranchObj?.name === 'Centro';
+                      const price = isCentro ? s.precioCentro : s.precioCambyreta;
+                      return (
+                        <option key={s._id} value={s._id}>
+                          {s.name} ({price ? `Gs. ${price.toLocaleString('es-AR')}` : '—'})
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Fecha</label>
-                <CustomCalendar 
-                  selectedDate={newAptDate} 
-                  onDateChange={setNewAptDate}
-                  disabledDaysOfWeek={barbers.find(b => b._id === newAptBarber)?.unavailableDays}
-                />
-              </div>
+              {newAptBranch && newAptBarber && (
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Fecha</label>
+                  <CustomCalendar 
+                    selectedDate={newAptDate} 
+                    onDateChange={setNewAptDate}
+                    disabledDaysOfWeek={getDisabledDays()}
+                  />
+                </div>
+              )}
 
-              {newAptBarber && newAptDate && (
+              {newAptBranch && newAptBarber && newAptDate && (
                 <div>
                   <label className="block text-sm font-medium text-zinc-300 mb-1.5">Horario</label>
                   {loadingSlots ? (
@@ -349,7 +415,7 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-zinc-500">No hay horarios disponibles.</p>
+                    <p className="text-sm text-zinc-500">No hay horarios disponibles para la combinación de sucursal, barbero y fecha.</p>
                   )}
                 </div>
               )}
@@ -371,7 +437,7 @@ export default function TurnosClient({ barbers = [], services = [] }: TurnosClie
                     type="text"
                     value={newAptPhone}
                     onChange={(e) => setNewAptPhone(e.target.value)}
-                    placeholder="Ej: 0981123456"
+                    placeholder="Ej: 595981123456"
                     className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                   />
                 </div>

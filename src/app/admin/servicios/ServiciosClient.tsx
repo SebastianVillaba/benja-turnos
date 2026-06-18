@@ -7,7 +7,8 @@ import { Plus, Pencil, Trash2, X, Loader2, Scissors } from 'lucide-react';
 interface ServiceItem {
   _id: string;
   name: string;
-  price: number;
+  precioCentro: number;
+  precioCambyreta: number;
   description: string;
   durationMinutes: number;
 }
@@ -76,7 +77,8 @@ export default function ServiciosClient({ initialServices }: { initialServices: 
             <thead>
               <tr className="border-b border-zinc-800/80">
                 <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Nombre</th>
-                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Precio</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Precio Centro</th>
+                <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Precio Cambyreta</th>
                 <th className="text-left px-6 py-4 text-sm font-medium text-zinc-400">Duración</th>
                 <th className="text-right px-6 py-4 text-sm font-medium text-zinc-400">Acciones</th>
               </tr>
@@ -84,7 +86,7 @@ export default function ServiciosClient({ initialServices }: { initialServices: 
             <tbody>
               {services.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-zinc-500">
+                  <td colSpan={5} className="text-center py-12 text-zinc-500">
                     No hay servicios registrados.
                   </td>
                 </tr>
@@ -105,7 +107,10 @@ export default function ServiciosClient({ initialServices }: { initialServices: 
                       </div>
                     </td>
                     <td className="px-6 py-4 text-amber-500 font-medium">
-                      ${service.price.toLocaleString('es-AR')}
+                      Gs. {service.precioCentro.toLocaleString('es-AR')}
+                    </td>
+                    <td className="px-6 py-4 text-amber-500 font-medium">
+                      Gs. {service.precioCambyreta.toLocaleString('es-AR')}
                     </td>
                     <td className="px-6 py-4 text-zinc-300">
                       {service.durationMinutes} min
@@ -160,15 +165,27 @@ export default function ServiciosClient({ initialServices }: { initialServices: 
                   className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Precio</label>
-                <input
-                  name="price"
-                  type="number"
-                  required
-                  defaultValue={editingService?.price || ''}
-                  className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Precio Centro</label>
+                  <input
+                    name="precioCentro"
+                    type="number"
+                    required
+                    defaultValue={editingService?.precioCentro || ''}
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-zinc-300 mb-1.5">Precio Cambyreta</label>
+                  <input
+                    name="precioCambyreta"
+                    type="number"
+                    required
+                    defaultValue={editingService?.precioCambyreta || ''}
+                    className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1.5">Duración (minutos)</label>

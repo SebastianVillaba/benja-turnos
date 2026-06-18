@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 
-const secretKey = process.env.SESSION_SECRET!;
+const secretKey = process.env.SESSION_SECRET || 'benja-barber-academy-super-secret-key-development-32-bytes';
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export async function middleware(request: NextRequest) {

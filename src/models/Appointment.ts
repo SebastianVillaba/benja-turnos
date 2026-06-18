@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IAppointment extends Document {
   barberId: mongoose.Types.ObjectId;
   serviceId: mongoose.Types.ObjectId;
+  branchId?: mongoose.Types.ObjectId;
   customerName: string;
   customerPhone: string;
   date: Date; // Fecha y hora exacta del turno (Ej: 2026-03-18T16:00:00.000Z)
@@ -15,6 +16,7 @@ export interface IAppointment extends Document {
 const AppointmentSchema: Schema = new Schema({
   barberId: { type: Schema.Types.ObjectId, ref: 'Barber', required: true },
   serviceId: { type: Schema.Types.ObjectId, ref: 'Service', required: true },
+  branchId: { type: Schema.Types.ObjectId, ref: 'Branch', required: false },
   customerName: { type: String, required: true },
   customerPhone: { type: String, required: true },
   date: { type: Date, required: true },
