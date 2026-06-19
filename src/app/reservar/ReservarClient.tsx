@@ -59,6 +59,16 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
   const [isPending, startTransition] = useTransition();
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // Filtrar barberos que atienden en la sucursal seleccionada
+  const filteredBarbers = barbers.filter((barber) => {
+    if (!selectedBranch) return true;
+    if (!barber.branchAssignments || barber.branchAssignments.length === 0) return true;
+    return barber.branchAssignments.some(
+      (ba) => ba.branchId === selectedBranch._id && ba.workDays && ba.workDays.length > 0
+    );
+  });
+
+
   // Paso 1: Seleccionar sucursal
   const handleSelectBranch = (branch: Branch) => {
     setSelectedBranch(branch);
@@ -287,23 +297,27 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
           </div>
 
           <div className="grid grid-cols-1 gap-4">
-            {barbers.map((barber) => (
-              <button
-                key={barber._id}
-                onClick={() => handleSelectBarber(barber)}
-                className="flex items-center gap-5 p-5 bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl hover:border-amber-600/50 hover:shadow-[0_0_20px_rgba(217,176,108,0.1)] transition-all duration-300 text-left group"
-              >
-                <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-zinc-700 group-hover:border-amber-600/50 transition-colors flex-shrink-0">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={barber.imageUrl} alt={barber.name} className="w-full h-full object-cover" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-white">{barber.name}</h3>
-                  <p className="text-sm text-zinc-400">Profesional</p>
-                </div>
-                <ArrowLeft className="w-5 h-5 text-zinc-600 group-hover:text-amber-500 rotate-180 transition-colors" />
-              </button>
-            ))}
+            {filteredBarbers.length === 0 ? (
+              <p className="text-zinc-500 text-center py-6">No hay barberos trabajando en esta sucursal.</p>
+            ) : (
+              filteredBarbers.map((barber) => (
+                <button
+                  key={barber._id}
+                  onClick={() => handleSelectBarber(barber)}
+                  className="flex items-center gap-5 p-5 bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl hover:border-amber-600/50 hover:shadow-[0_0_20px_rgba(217,176,108,0.1)] transition-all duration-300 text-left group"
+                >
+                  <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-zinc-700 group-hover:border-amber-600/50 transition-colors flex-shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={barber.imageUrl} alt={barber.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-white">{barber.name}</h3>
+                    <p className="text-sm text-zinc-400">Profesional</p>
+                  </div>
+                  <ArrowLeft className="w-5 h-5 text-zinc-600 group-hover:text-amber-500 rotate-180 transition-colors" />
+                </button>
+              ))
+            )}
           </div>
         </div>
       )}

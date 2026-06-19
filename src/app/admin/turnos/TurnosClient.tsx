@@ -78,6 +78,15 @@ export default function TurnosClient({ barbers = [], services = [], branches = [
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState('');
 
+  // Filtrar los barberos disponibles para el modal de turno manual
+  const filteredBarbersForModal = barbers.filter((b) => {
+    if (!newAptBranch) return true;
+    if (!b.branchAssignments || b.branchAssignments.length === 0) return true;
+    return b.branchAssignments.some(
+      (ba) => ba.branchId === newAptBranch && ba.workDays && ba.workDays.length > 0
+    );
+  });
+
   const loadAppointments = async (dateStr: string) => {
     setLoading(true);
     try {
@@ -352,7 +361,7 @@ export default function TurnosClient({ barbers = [], services = [], branches = [
                     className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                   >
                     <option value="">Selecciona barbero</option>
-                    {barbers.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
+                    {filteredBarbersForModal.map(b => <option key={b._id} value={b._id}>{b.name}</option>)}
                   </select>
                 </div>
                 <div>
