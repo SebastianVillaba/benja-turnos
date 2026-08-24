@@ -118,21 +118,12 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
 
   // Obtener detalles de precios diferenciados
   const getPriceDetails = (service: Service) => {
-    if (!selectedBranch) return { price: 0, originalPrice: 0, hasWebDiscount: false };
+    if (!selectedBranch) return { price: 0 };
     const isCentro = selectedBranch.name === 'Centro';
     const basePrice = isCentro ? service.precioCentro : service.precioCambyreta;
 
-    // Lógica de descuento web de los miércoles (15% aprox, o corte simple de 60.000 a 40.000 Gs)
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const isHaircut = service.name.toLowerCase().includes('corte');
-    const isMiercoles = dayOfWeek === 3;
-    const hasDiscount = isHaircut && basePrice === 60000 && isMiercoles;
-
     return {
-      price: hasDiscount ? 40000 : basePrice,
-      originalPrice: basePrice,
-      hasWebDiscount: hasDiscount
+      price: basePrice
     };
   };
 
@@ -337,7 +328,7 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
 
           <div className="grid grid-cols-1 gap-4">
             {services.map((service) => {
-              const { price, originalPrice, hasWebDiscount } = getPriceDetails(service);
+              const { price } = getPriceDetails(service);
               return (
                 <button
                   key={service._id}
@@ -348,17 +339,9 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
                     <div>
                       <h3 className="text-lg font-bold text-white group-hover:text-amber-100 flex py-1 items-center gap-2 flex-wrap">
                         {service.name}
-                        {hasWebDiscount && (
-                          <span className="inline-flex items-center rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold text-green-400 border border-green-500/20 uppercase tracking-widest">
-                            Descuento Web
-                          </span>
-                        )}
                       </h3>
                     </div>
                     <div className="text-right flex flex-col items-end">
-                      {hasWebDiscount && (
-                        <span className="text-zinc-500 line-through text-xs font-medium">Gs. {originalPrice.toLocaleString('es-AR')}</span>
-                      )}
                       <span className="text-amber-500 font-bold text-lg">Gs. {price.toLocaleString('es-AR')}</span>
                     </div>
                   </div>
@@ -474,25 +457,14 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
               </div>
               <div className="border-t border-zinc-800 pt-3 flex flex-col gap-1">
                 {selectedService && (() => {
-                  const { price, originalPrice, hasWebDiscount } = getPriceDetails(selectedService);
+                  const { price } = getPriceDetails(selectedService);
                   return (
-                    <>
-                      {hasWebDiscount && (
-                        <div className="flex justify-between items-center text-sm mb-1">
-                          <span className="text-zinc-500">Precio Regular</span>
-                          <span className="text-zinc-500 line-through">Gs. {originalPrice.toLocaleString('es-AR')}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between items-center">
-                        <span className="text-zinc-300 font-medium">Total</span>
-                        <div className="flex items-center gap-2">
-                          {hasWebDiscount && (
-                            <span className="text-green-400 text-[10px] font-bold bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 uppercase tracking-wider hidden sm:inline-block">Descuento Web</span>
-                          )}
-                          <span className="text-amber-500 font-bold text-xl">Gs. {price.toLocaleString('es-AR')}</span>
-                        </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-300 font-medium">Total</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-amber-500 font-bold text-xl">Gs. {price.toLocaleString('es-AR')}</span>
                       </div>
-                    </>
+                    </div>
                   );
                 })()}
               </div>
