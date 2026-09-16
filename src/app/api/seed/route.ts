@@ -21,20 +21,8 @@ export async function GET() {
     const centroBranch = await Branch.create({ name: 'Centro' });
     const cambyretaBranch = await Branch.create({ name: 'Cambyreta' });
 
-    // 4. Creamos el primer Barbero (el Maestro) con asignaciones
-    const newBarber = await Barber.create({
-      name: "Benjamín",
-      imageUrl: "/peluqueroBenja.jpg",
-      isActive: true,
-      branchAssignments: [
-        { branchId: centroBranch._id, workDays: [1, 2, 4] }, // Lunes, Martes, Jueves en Centro
-        { branchId: cambyretaBranch._id, workDays: [3, 5, 6] } // Miércoles, Viernes, Sábado en Cambyreta
-      ],
-      unavailableDays: [0] // Domingo no trabaja
-    });
-
-    // 5. Creamos los servicios premium con duración y precios diferenciados
-    const newServices = await Service.insertMany([
+    // 4. Creamos los servicios premium con duración y precios base
+    const [corteService, barbaService, expService] = await Service.insertMany([
       {
         name: "Corte Premium & Lavado",
         precioCentro: 70000,
@@ -58,7 +46,45 @@ export async function GET() {
       }
     ]);
 
-    // 6. Creamos un usuario admin por defecto
+    // 5. Creamos a Benjamín (Maestro) con tarifa personalizada de 80.000 para Corte
+    const benjaBarber = await Barber.create({
+      name: "Benjamín",
+      imageUrl: "/peluqueroBenja.jpg",
+      isActive: true,
+      branchAssignments: [
+        { branchId: centroBranch._id, workDays: [1, 2, 4] }, // Lunes, Martes, Jueves en Centro
+        { branchId: cambyretaBranch._id, workDays: [3, 5, 6] } // Miércoles, Viernes, Sábado en Cambyreta
+      ],
+      unavailableDays: [0], // Domingo no trabaja
+      servicePrices: [
+        {
+          serviceId: corteService._id,
+          precioCentro: 80000,
+          precioCambyreta: 80000,
+        }
+      ]
+    });
+
+    // 6. Creamos al nuevo barbero (Damián) con tarifa diferenciada de 60.000 para Corte
+    const damianBarber = await Barber.create({
+      name: "Damián",
+      imageUrl: "/peluqueroDamian.jpeg",
+      isActive: true,
+      branchAssignments: [
+        { branchId: centroBranch._id, workDays: [2, 3, 5] }, // Martes, Miércoles, Viernes en Centro
+        { branchId: cambyretaBranch._id, workDays: [1, 4, 6] } // Lunes, Jueves, Sábado en Cambyreta
+      ],
+      unavailableDays: [0],
+      servicePrices: [
+        {
+          serviceId: corteService._id,
+          precioCentro: 60000,
+          precioCambyreta: 60000,
+        }
+      ]
+    });
+
+    // 7. Creamos un usuario admin por defecto
     const hashedPassword = await bcrypt.hash('admin123', 10);
     const adminUser = await User.create({
       email: 'admin@benja.com',
@@ -67,12 +93,12 @@ export async function GET() {
       role: 'admin'
     });
 
-    // 7. Devolvemos un mensaje de éxito con los datos creados
+    // 8. Devolvemos un mensaje de éxito con los datos creados
     return NextResponse.json({
       message: "¡Base de datos poblada con éxito!",
       branches: [centroBranch, cambyretaBranch],
-      barber: newBarber,
-      services: newServices,
+      barbers: [benjaBarber, damianBarber],
+      services: [corteService, barbaService, expService],
       admin: { email: adminUser.email, password: 'admin123 (hasheada en DB)' }
     });
 

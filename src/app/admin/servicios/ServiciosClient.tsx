@@ -13,7 +13,23 @@ interface ServiceItem {
   durationMinutes: number;
 }
 
-export default function ServiciosClient({ initialServices }: { initialServices: ServiceItem[] }) {
+interface BarberItem {
+  _id: string;
+  name: string;
+  servicePrices?: {
+    serviceId: string;
+    precioCentro?: number;
+    precioCambyreta?: number;
+    price?: number;
+  }[];
+}
+
+interface ServiciosClientProps {
+  initialServices: ServiceItem[];
+  barbers?: BarberItem[];
+}
+
+export default function ServiciosClient({ initialServices, barbers = [] }: ServiciosClientProps) {
   const [services, setServices] = useState(initialServices);
   const [showModal, setShowModal] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
@@ -103,6 +119,24 @@ export default function ServiciosClient({ initialServices }: { initialServices: 
                           {service.description && (
                             <p className="text-xs text-zinc-500 mt-0.5 max-w-[250px] truncate">{service.description}</p>
                           )}
+                          {(() => {
+                            const customBarbers = barbers.filter(b => 
+                              b.servicePrices?.some(sp => sp.serviceId === service._id)
+                            );
+                            if (customBarbers.length === 0) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {customBarbers.map(b => {
+                                  const sp = b.servicePrices?.find(p => p.serviceId === service._id);
+                                  return (
+                                    <span key={b._id} className="text-[10px] bg-amber-950/40 border border-amber-800/40 text-amber-400 px-1.5 py-0.5 rounded">
+                                      {b.name}: {sp?.precioCentro ? `C: ${sp.precioCentro.toLocaleString('es-AR')}` : ''}{sp?.precioCentro && sp?.precioCambyreta ? ' | ' : ''}{sp?.precioCambyreta ? `Cb: ${sp.precioCambyreta.toLocaleString('es-AR')}` : ''}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </td>

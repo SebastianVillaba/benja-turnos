@@ -1,4 +1,4 @@
-import { getBarbersAdmin } from '@/app/actions/admin-actions';
+import { getBarbersAdmin, getServicesAdmin } from '@/app/actions/admin-actions';
 import { getBranches } from '@/app/actions/actions';
 import BarberosClient from './BarberosClient';
 
@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function BarberosPage() {
   const barbers = await getBarbersAdmin();
   const branches = await getBranches();
+  const services = await getServicesAdmin();
 
-  return <BarberosClient initialBarbers={barbers} branches={branches} />;
+  return <BarberosClient initialBarbers={barbers} branches={branches} services={services} />;
 }

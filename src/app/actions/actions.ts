@@ -42,6 +42,12 @@ export async function getBarbers() {
       branchId: ba.branchId.toString(),
       workDays: ba.workDays || []
     })) : [],
+    servicePrices: b.servicePrices ? b.servicePrices.map((sp: any) => ({
+      serviceId: sp.serviceId.toString(),
+      precioCentro: sp.precioCentro,
+      precioCambyreta: sp.precioCambyreta,
+      price: sp.price,
+    })) : [],
   }));
 }
 
@@ -56,6 +62,12 @@ export async function getActiveBarbers() {
     branchAssignments: b.branchAssignments ? b.branchAssignments.map((ba: any) => ({
       branchId: ba.branchId.toString(),
       workDays: ba.workDays || []
+    })) : [],
+    servicePrices: b.servicePrices ? b.servicePrices.map((sp: any) => ({
+      serviceId: sp.serviceId.toString(),
+      precioCentro: sp.precioCentro,
+      precioCambyreta: sp.precioCambyreta,
+      price: sp.price,
     })) : [],
   }));
 }

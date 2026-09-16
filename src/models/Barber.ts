@@ -1,5 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IBarberServicePrice {
+  serviceId: mongoose.Types.ObjectId | string;
+  precioCentro?: number;
+  precioCambyreta?: number;
+  price?: number;
+}
+
 export interface IBarber extends Document {
   name: string; // Ej: "Hugo"
   imageUrl: string;
@@ -9,6 +16,7 @@ export interface IBarber extends Document {
     branchId: mongoose.Types.ObjectId | string;
     workDays: number[];
   }[];
+  servicePrices?: IBarberServicePrice[];
 }
 
 const BarberSchema: Schema = new Schema({
@@ -20,6 +28,15 @@ const BarberSchema: Schema = new Schema({
     type: [{
       branchId: { type: Schema.Types.ObjectId, ref: 'Branch', required: true },
       workDays: { type: [Number], default: [] }
+    }],
+    default: []
+  },
+  servicePrices: {
+    type: [{
+      serviceId: { type: Schema.Types.ObjectId, ref: 'Service', required: true },
+      precioCentro: { type: Number },
+      precioCambyreta: { type: Number },
+      price: { type: Number }
     }],
     default: []
   }

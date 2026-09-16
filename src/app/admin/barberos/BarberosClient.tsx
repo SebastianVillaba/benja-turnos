@@ -2,7 +2,16 @@
 
 import { useState, useTransition } from 'react';
 import { createBarber, updateBarber, deleteBarber, getBarbersAdmin } from '@/app/actions/admin-actions';
-import { Plus, Pencil, Trash2, X, Loader2, Calendar as CalendarIcon, MapPin } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Loader2, Calendar as CalendarIcon, MapPin, Scissors } from 'lucide-react';
+
+interface ServiceItem {
+  _id: string;
+  name: string;
+  precioCentro: number;
+  precioCambyreta: number;
+  description: string;
+  durationMinutes: number;
+}
 
 interface BarberItem {
   _id: string;
@@ -13,6 +22,12 @@ interface BarberItem {
   branchAssignments?: {
     branchId: string;
     workDays: number[];
+  }[];
+  servicePrices?: {
+    serviceId: string;
+    precioCentro?: number;
+    precioCambyreta?: number;
+    price?: number;
   }[];
 }
 
@@ -33,10 +48,12 @@ const DAYS_OF_WEEK = [
 
 export default function BarberosClient({
   initialBarbers,
-  branches = []
+  branches = [],
+  services = []
 }: {
   initialBarbers: BarberItem[];
   branches: Branch[];
+  services?: ServiceItem[];
 }) {
   const [barbers, setBarbers] = useState(initialBarbers);
   const [showModal, setShowModal] = useState(false);
@@ -46,6 +63,11 @@ export default function BarberosClient({
   const [dayAssignments, setDayAssignments] = useState<Record<number, string>>({
     1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
   });
+
+  // Precios personalizados por servicio para este barbero
+  const [servicePricesState, setServicePricesState] = useState<
+    Record<string, { precioCentro: string; precioCambyreta: string }>
+  >({});
 
   const [isPending, startTransition] = useTransition();
 
@@ -70,8 +92,25 @@ export default function BarberosClient({
       .filter(([_, branchId]) => branchId === '')
       .map(([day]) => parseInt(day));
 
+    // Generar servicePrices omitiendo servicios sin personalización
+    const servicePrices = Object.entries(servicePricesState)
+      .map(([serviceId, prices]) => {
+        const pCentro = prices.precioCentro !== '' ? Number(prices.precioCentro) : undefined;
+        const pCamby = prices.precioCambyreta !== '' ? Number(prices.precioCambyreta) : undefined;
+        if (pCentro !== undefined || pCamby !== undefined) {
+          return {
+            serviceId,
+            ...(pCentro !== undefined ? { precioCentro: pCentro } : {}),
+            ...(pCamby !== undefined ? { precioCambyreta: pCamby } : {})
+          };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
     formData.append('branchAssignments', JSON.stringify(assignments));
     formData.append('unavailableDays', JSON.stringify(unDays));
+    formData.append('servicePrices', JSON.stringify(servicePrices));
 
     startTransition(async () => {
       if (editingBarber) {
@@ -98,6 +137,11 @@ export default function BarberosClient({
     setDayAssignments({
       1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
     });
+    const initialPrices: Record<string, { precioCentro: string; precioCambyreta: string }> = {};
+    services.forEach(s => {
+      initialPrices[s._id] = { precioCentro: '', precioCambyreta: '' };
+    });
+    setServicePricesState(initialPrices);
     setShowModal(true);
   };
 
@@ -117,6 +161,18 @@ export default function BarberosClient({
       });
     }
     setDayAssignments(initialAssignments);
+
+    // Inicializar precios por servicio
+    const initialPrices: Record<string, { precioCentro: string; precioCambyreta: string }> = {};
+    services.forEach(s => {
+      const found = barber.servicePrices?.find(sp => sp.serviceId === s._id);
+      initialPrices[s._id] = {
+        precioCentro: found?.precioCentro !== undefined && found?.precioCentro !== null ? String(found.precioCentro) : '',
+        precioCambyreta: found?.precioCambyreta !== undefined && found?.precioCambyreta !== null ? String(found.precioCambyreta) : ''
+      };
+    });
+    setServicePricesState(initialPrices);
+
     setShowModal(true);
   };
 
@@ -192,6 +248,30 @@ export default function BarberosClient({
                       <p className="text-xs text-zinc-500 italic">Sin asignaciones de sucursal configuradas.</p>
                     )}
                   </div>
+
+                  {barber.servicePrices && barber.servicePrices.length > 0 && (
+                    <div className="mt-3 pt-2.5 border-t border-zinc-800/60">
+                      <p className="text-xs text-zinc-500 font-semibold uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <Scissors className="w-3.5 h-3.5 text-amber-500" /> Tarifas Diferenciadas
+                      </p>
+                      <div className="space-y-1">
+                        {barber.servicePrices.map((sp) => {
+                          const srv = services.find(s => s._id === sp.serviceId);
+                          return (
+                            <div key={sp.serviceId} className="text-xs text-zinc-400 flex justify-between items-center">
+                              <span className="truncate max-w-[140px] text-zinc-300">{srv?.name || 'Servicio'}:</span>
+                              <span className="text-amber-400 font-medium shrink-0">
+                                {sp.precioCentro ? `C: Gs. ${sp.precioCentro.toLocaleString('es-AR')}` : ''}
+                                {sp.precioCentro && sp.precioCambyreta ? ' | ' : ''}
+                                {sp.precioCambyreta ? `Cb: Gs. ${sp.precioCambyreta.toLocaleString('es-AR')}` : ''}
+                                {!sp.precioCentro && !sp.precioCambyreta && sp.price ? `Gs. ${sp.price.toLocaleString('es-AR')}` : ''}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
               
@@ -217,7 +297,7 @@ export default function BarberosClient({
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-6 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+          <div className="bg-[#0d0d0d] border border-zinc-800/80 rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white">
                 {editingBarber ? 'Editar Barbero' : 'Nuevo Barbero'}
@@ -287,6 +367,68 @@ export default function BarberosClient({
                   ))}
                 </div>
               </div>
+
+              {/* Precios diferenciados por servicio */}
+              {services.length > 0 && (
+                <div className="border-t border-zinc-800/80 pt-4 mt-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Scissors className="w-4 h-4 text-amber-500" />
+                    <label className="text-sm font-medium text-zinc-300">Precios por Servicio (Diferenciados por Barbero)</label>
+                  </div>
+                  <p className="text-[11px] text-zinc-500 mb-3">
+                    Personaliza el precio para este barbero. Si dejas el campo vacío, se usará el precio base del servicio.
+                  </p>
+                  <div className="space-y-3">
+                    {services.map((service) => {
+                      const currentPrices = servicePricesState[service._id] || { precioCentro: '', precioCambyreta: '' };
+                      return (
+                        <div key={service._id} className="bg-[#141414] border border-zinc-800/50 p-3 rounded-xl space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-white truncate">{service.name}</span>
+                            <span className="text-[10px] text-zinc-500">
+                              Base: {service.precioCentro.toLocaleString('es-AR')} / {service.precioCambyreta.toLocaleString('es-AR')}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[11px] text-zinc-400 mb-1">Centro (Gs.)</label>
+                              <input
+                                type="number"
+                                placeholder={service.precioCentro.toString()}
+                                value={currentPrices.precioCentro}
+                                onChange={(e) => setServicePricesState({
+                                  ...servicePricesState,
+                                  [service._id]: {
+                                    ...currentPrices,
+                                    precioCentro: e.target.value
+                                  }
+                                })}
+                                className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[11px] text-zinc-400 mb-1">Cambyreta (Gs.)</label>
+                              <input
+                                type="number"
+                                placeholder={service.precioCambyreta.toString()}
+                                value={currentPrices.precioCambyreta}
+                                onChange={(e) => setServicePricesState({
+                                  ...servicePricesState,
+                                  [service._id]: {
+                                    ...currentPrices,
+                                    precioCambyreta: e.target.value
+                                  }
+                                })}
+                                className="w-full bg-[#0d0d0d] border border-zinc-800/80 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <button
                 type="submit"

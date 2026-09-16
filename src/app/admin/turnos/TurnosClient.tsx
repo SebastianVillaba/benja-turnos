@@ -3,6 +3,7 @@
 import { useState, useTransition, useEffect } from 'react';
 import { getAppointmentsByDate, updateAppointmentStatus, adminCreateAppointment } from '@/app/actions/admin-actions';
 import { getAvailableSlots } from '@/app/actions/actions';
+import { getServicePriceForBarber } from '@/lib/pricing';
 import { CalendarCheck, CheckCircle, XCircle, Clock, Loader2, Phone, User, Plus, X, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
 import CustomCalendar from '@/components/CustomCalendar';
@@ -15,6 +16,12 @@ interface Barber {
   branchAssignments?: {
     branchId: string;
     workDays: number[];
+  }[];
+  servicePrices?: {
+    serviceId: string;
+    precioCentro?: number;
+    precioCambyreta?: number;
+    price?: number;
   }[];
 }
 
@@ -159,8 +166,8 @@ export default function TurnosClient({ barbers = [], services = [], branches = [
     const selectedBranchObj = branches.find(b => b._id === newAptBranch);
     if (!selectedBranchObj) return;
 
-    const isCentro = selectedBranchObj.name === 'Centro';
-    const price = isCentro ? serviceObj.precioCentro : serviceObj.precioCambyreta;
+    const selectedBarberObj = barbers.find(b => b._id === newAptBarber);
+    const { price } = getServicePriceForBarber(serviceObj, selectedBarberObj, selectedBranchObj.name);
 
     setError('');
     startTransition(async () => {
@@ -374,11 +381,11 @@ export default function TurnosClient({ barbers = [], services = [], branches = [
                     <option value="">Selecciona servicio</option>
                     {services.map(s => {
                       const selectedBranchObj = branches.find(b => b._id === newAptBranch);
-                      const isCentro = selectedBranchObj?.name === 'Centro';
-                      const price = isCentro ? s.precioCentro : s.precioCambyreta;
+                      const selectedBarberObj = barbers.find(b => b._id === newAptBarber);
+                      const { price, isCustom } = getServicePriceForBarber(s, selectedBarberObj, selectedBranchObj?.name);
                       return (
                         <option key={s._id} value={s._id}>
-                          {s.name} ({price ? `Gs. ${price.toLocaleString('es-AR')}` : '—'})
+                          {s.name} ({price ? `Gs. ${price.toLocaleString('es-AR')}` : '—'}{isCustom ? ' • Tarifa barbero' : ''})
                         </option>
                       );
                     })}

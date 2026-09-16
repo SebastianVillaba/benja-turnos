@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { getAvailableSlots, createAppointment } from '@/app/actions/actions';
+import { getServicePriceForBarber } from '@/lib/pricing';
 import CustomCalendar from '@/components/CustomCalendar';
 import { ArrowLeft, User, Scissors, Calendar, Clock, Check, Loader2, MapPin } from 'lucide-react';
 import Link from 'next/link';
@@ -21,6 +22,12 @@ interface Barber {
   branchAssignments?: {
     branchId: string;
     workDays: number[];
+  }[];
+  servicePrices?: {
+    serviceId: string;
+    precioCentro?: number;
+    precioCambyreta?: number;
+    price?: number;
   }[];
 }
 
@@ -116,15 +123,9 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
     setStep(5);
   };
 
-  // Obtener detalles de precios diferenciados
+  // Obtener detalles de precios diferenciados por barbero y sucursal
   const getPriceDetails = (service: Service) => {
-    if (!selectedBranch) return { price: 0 };
-    const isCentro = selectedBranch.name === 'Centro';
-    const basePrice = isCentro ? service.precioCentro : service.precioCambyreta;
-
-    return {
-      price: basePrice
-    };
+    return getServicePriceForBarber(service, selectedBarber, selectedBranch?.name);
   };
 
   // Paso 5: Confirmar turno
@@ -328,7 +329,7 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
 
           <div className="grid grid-cols-1 gap-4">
             {services.map((service) => {
-              const { price } = getPriceDetails(service);
+              const { price, isCustom } = getPriceDetails(service);
               return (
                 <button
                   key={service._id}
@@ -339,6 +340,11 @@ export default function ReservarClient({ barbers, services, branches }: Reservar
                     <div>
                       <h3 className="text-lg font-bold text-white group-hover:text-amber-100 flex py-1 items-center gap-2 flex-wrap">
                         {service.name}
+                        {isCustom && selectedBarber && (
+                          <span className="text-[11px] font-medium text-amber-400/90 bg-amber-950/60 border border-amber-800/50 px-2 py-0.5 rounded-full">
+                            Tarifa {selectedBarber.name}
+                          </span>
+                        )}
                       </h3>
                     </div>
                     <div className="text-right flex flex-col items-end">

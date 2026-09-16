@@ -93,6 +93,12 @@ export async function getBarbersAdmin() {
     branchAssignments: b.branchAssignments ? b.branchAssignments.map((ba: any) => ({
       branchId: ba.branchId.toString(),
       workDays: ba.workDays || []
+    })) : [],
+    servicePrices: b.servicePrices ? b.servicePrices.map((sp: any) => ({
+      serviceId: sp.serviceId.toString(),
+      precioCentro: sp.precioCentro,
+      precioCambyreta: sp.precioCambyreta,
+      price: sp.price,
     })) : []
   }));
 }
@@ -107,12 +113,16 @@ export async function createBarber(formData: FormData) {
   const branchAssignmentsStr = formData.get('branchAssignments') as string;
   const branchAssignments = branchAssignmentsStr ? JSON.parse(branchAssignmentsStr) : [];
 
+  const servicePricesStr = formData.get('servicePrices') as string;
+  const servicePrices = servicePricesStr ? JSON.parse(servicePricesStr) : [];
+
   await Barber.create({
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
     unavailableDays,
     branchAssignments,
+    servicePrices,
   });
 
   revalidatePath('/admin/barberos');
@@ -129,12 +139,16 @@ export async function updateBarber(id: string, formData: FormData) {
   const branchAssignmentsStr = formData.get('branchAssignments') as string;
   const branchAssignments = branchAssignmentsStr ? JSON.parse(branchAssignmentsStr) : [];
 
+  const servicePricesStr = formData.get('servicePrices') as string;
+  const servicePrices = servicePricesStr ? JSON.parse(servicePricesStr) : [];
+
   await Barber.findByIdAndUpdate(id, {
     name: formData.get('name') as string,
     imageUrl: formData.get('imageUrl') as string,
     isActive: formData.get('isActive') === 'true',
     unavailableDays,
     branchAssignments,
+    servicePrices,
   });
 
   revalidatePath('/admin/barberos');
