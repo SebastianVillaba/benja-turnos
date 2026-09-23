@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { createBarber, updateBarber, deleteBarber, getBarbersAdmin } from '@/app/actions/admin-actions';
 import { Plus, Pencil, Trash2, X, Loader2, Calendar as CalendarIcon, MapPin, Scissors } from 'lucide-react';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 interface ServiceItem {
   _id: string;
@@ -69,7 +70,17 @@ export default function BarberosClient({
     Record<string, { precioCentro: string; precioCambyreta: string }>
   >({});
 
+  const [imageUrl, setImageUrl] = useState('');
+  const [imageError, setImageError] = useState('');
+
   const [isPending, startTransition] = useTransition();
+
+  const closeModal = () => {
+    setShowModal(false);
+    setEditingBarber(null);
+    setImageUrl('');
+    setImageError('');
+  };
 
   const refreshBarbers = async () => {
     const updated = await getBarbersAdmin();
@@ -77,6 +88,11 @@ export default function BarberosClient({
   };
 
   const handleSubmit = async (formData: FormData) => {
+    if (!imageUrl.trim()) {
+      setImageError('Debes subir o seleccionar una foto para el barbero.');
+      return;
+    }
+    formData.set('imageUrl', imageUrl);
     // Generar branchAssignments y unavailableDays en base a dayAssignments
     const assignments = branches.map(branch => {
       const workDays = Object.entries(dayAssignments)
@@ -119,8 +135,7 @@ export default function BarberosClient({
         await createBarber(formData);
       }
       await refreshBarbers();
-      setShowModal(false);
-      setEditingBarber(null);
+      closeModal();
     });
   };
 
@@ -134,6 +149,8 @@ export default function BarberosClient({
 
   const openCreate = () => {
     setEditingBarber(null);
+    setImageUrl('');
+    setImageError('');
     setDayAssignments({
       1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 0: ''
     });
@@ -147,6 +164,8 @@ export default function BarberosClient({
 
   const openEdit = (barber: BarberItem) => {
     setEditingBarber(barber);
+    setImageUrl(barber.imageUrl || '');
+    setImageError('');
     
     // Inicializar asignaciones
     const initialAssignments: Record<number, string> = {
@@ -303,7 +322,7 @@ export default function BarberosClient({
                 {editingBarber ? 'Editar Barbero' : 'Nuevo Barbero'}
               </h2>
               <button
-                onClick={() => { setShowModal(false); setEditingBarber(null); }}
+                onClick={closeModal}
                 className="text-zinc-500 hover:text-zinc-300"
               >
                 <X className="w-5 h-5" />
@@ -321,14 +340,21 @@ export default function BarberosClient({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">URL de Imagen</label>
-                <input
+                <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+                  Foto del Barbero <span className="text-amber-500">*</span>
+                </label>
+                <ImageUpload
+                  value={imageUrl}
+                  onChange={(val) => {
+                    setImageUrl(val);
+                    if (val) setImageError('');
+                  }}
                   name="imageUrl"
                   required
-                  defaultValue={editingBarber?.imageUrl || ''}
-                  placeholder="https://... o /imagen.jpg"
-                  className="w-full bg-[#141414] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-white placeholder-zinc-600 focus:border-amber-600/50 focus:outline-none transition-colors text-sm"
                 />
+                {imageError && (
+                  <p className="text-xs text-red-400 mt-1">{imageError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-300 mb-1.5">Estado</label>
